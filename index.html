@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traktor Pflug Spiel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <div class="header">
+            <h1>🚜 Traktor Pflug Spiel</h1>
+            <div class="score-board">
+                <div class="score">Punkte: <span id="score">0</span></div>
+                <div class="progress">Fortschritt: <span id="progress">0%</span></div>
+                <div class="time">Zeit: <span id="time">0</span>s</div>
+            </div>
+            <div class="status-board">
+                <div class="weather">Wetter: <span id="weather">☀️ Sonnig</span></div>
+                <div class="power-ups">
+                    <span id="speedBoost" class="power-up hidden">⚡ Speed</span>
+                    <span id="doublePoints" class="power-up hidden">💰 2x Punkte</span>
+                </div>
+            </div>
+        </div>
+        
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        
+        <div class="controls">
+            <h3>Steuerung:</h3>
+            <p>🔸 WASD oder Pfeiltasten für Richtungsänderung</p>
+            <p>🔸 Sammle Power-Ups: ⚡ Geschwindigkeit, 💰 Doppelpunkte, ⏰ Zeitbonus</p>
+            <p>🔸 Verschiedene Böden: Normal (10P), Matsch (8P, langsam), Hart (15P)</p>
+            <p>🔸 Wetter: ☀️ Sonne (+2P Bonus), 🌧️ Regen (langsam)</p>
+        </div>
+        
+        <div id="gameOver" class="game-over hidden">
+            <h2>Spiel beendet!</h2>
+            <p>Dein Endergebnis: <span id="finalScore">0</span> Punkte</p>
+            <p>Zeit: <span id="finalTime">0</span> Sekunden</p>
+            <button onclick="restartGame()">Neues Spiel</button>
+        </div>
+    </div>
+
+    <script src="game_fixed.js"></script>
+</body>
+</html>
