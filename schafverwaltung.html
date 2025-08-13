@@ -1,0 +1,1429 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schafverwaltung</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sheep-card {
+            border-left: 4px solid #28a745;
+            transition: transform 0.2s;
+        }
+        .sheep-card:hover {
+            transform: translateY(-2px);
+        }
+        .alert-card {
+            border-left: 4px solid #dc3545;
+        }
+        .legend {
+            font-size: 0.85rem;
+        }
+        .legend-item {
+            display: inline-flex;
+            align-items: center;
+            margin-right: 15px;
+            margin-bottom: 5px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            margin-right: 5px;
+            border: 1px solid #dee2e6;
+        }
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .action-buttons {
+            gap: 5px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container">
+            <a class="navbar-brand" href="#"><i class="fas fa-sheep"></i> Schafverwaltung</a>
+            <div class="d-flex">
+                <button class="btn btn-outline-light me-2" onclick="exportData()">
+                    <i class="fas fa-download"></i> JSON Export
+                </button>
+                <input type="file" id="importFile" accept=".json" style="display: none;" onchange="importData(event)">
+                <button class="btn btn-outline-light" onclick="document.getElementById('importFile').click()">
+                    <i class="fas fa-upload"></i> JSON Import
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Dashboard -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Dashboard - Erinnerungen</h5>
+                    </div>
+                    <div class="card-body" id="alertsContainer">
+                        <!-- Alerts werden hier dynamisch eingefügt -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs" id="mainTabs">
+            <li class="nav-item">
+                <a class="nav-link active" data-bs-toggle="tab" href="#overview">Übersicht</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#addSheep">Schaf hinzufügen</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#statistics" onclick="updateStatistics()">Statistiken</a>
+            </li>
+        </ul>
+
+        <div class="tab-content mt-3">
+            <!-- Übersicht Tab -->
+            <div class="tab-pane fade show active" id="overview">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" class="form-control" id="searchInput" placeholder="Schafe suchen..." onkeyup="filterSheep()">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="filterSelect" onchange="displaySheep()">
+                            <option value="active">Aktive Schafe</option>
+                            <option value="all">Alle Schafe (inkl. gelöschte)</option>
+                            <option value="deleted">Nur gelöschte Schafe</option>
+                            <option value="noEarTag">Ohne Ohrmarke</option>
+                            <option value="withEarTag">Mit Ohrmarke</option>
+                            <option value="needsEarTag">Ohrmarke erforderlich (≥5 Monate)</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="sortSelect" onchange="displaySheep()">
+                            <option value="name">Nach Name sortieren</option>
+                            <option value="birthDate">Nach Geburtsdatum sortieren</option>
+                            <option value="earTag">Nach Ohrmarke sortieren</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- Legende -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body py-2">
+                                <div class="legend d-flex flex-wrap align-items-center">
+                                    <strong class="me-3">Legende:</strong>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background-color: #28a745;"></div>
+                                        Mit Ohrmarke
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background-color: #ffc107;"></div>
+                                        Unter 5 Monate (ohne Ohrmarke)
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background-color: #dc3545;"></div>
+                                        Über 5 Monate (ohne Ohrmarke)
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background-color: #6c757d;"></div>
+                                        Gelöschte Schafe
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row" id="sheepContainer">
+                    <!-- Schafe werden hier dynamisch eingefügt -->
+                </div>
+            </div>
+
+            <!-- Schaf hinzufügen Tab -->
+            <div class="tab-pane fade" id="addSheep">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Neues Schaf hinzufügen</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="sheepForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="sheepName" class="form-label">Name *</label>
+                                        <input type="text" class="form-control" id="sheepName" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="birthDate" class="form-label">Geburtsdatum *</label>
+                                        <input type="date" class="form-control" id="birthDate" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="earTag" class="form-label">Ohrmarkennummer</label>
+                                        <input type="text" class="form-control" id="earTag" placeholder="z.B. DE-123456789">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="gender" class="form-label">Geschlecht</label>
+                                        <select class="form-select" id="gender">
+                                            <option value="">Nicht angegeben</option>
+                                            <option value="weiblich">Weiblich</option>
+                                            <option value="männlich">Männlich</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="motherSheep" class="form-label">Mutterschaf</label>
+                                        <select class="form-select" id="motherSheep">
+                                            <option value="">Kein Mutterschaf zuordnen</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="notes" class="form-label">Notizen</label>
+                                        <textarea class="form-control" id="notes" rows="2" placeholder="Besondere Merkmale, Gesundheit, etc."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-plus"></i> Schaf hinzufügen
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="resetForm()">
+                                <i class="fas fa-undo"></i> Formular zurücksetzen
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistiken Tab -->
+            <div class="tab-pane fade" id="statistics">
+                <!-- Zeitraum-Filter -->
+                <div class="row mb-4">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-calendar-alt"></i> Zeitraum auswählen</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <label class="form-label small"><strong>Statistik-Modus:</strong></label>
+                                        <div class="btn-group w-100 mb-2" role="group">
+                                            <button type="button" class="btn btn-outline-info active" id="statsModeAll" onclick="setStatsMode('all')">
+                                                <i class="fas fa-baby"></i> Geboren im Zeitraum
+                                            </button>
+                                            <button type="button" class="btn btn-outline-success" id="statsModeActive" onclick="setStatsMode('active')">
+                                                <i class="fas fa-sheep"></i> Aktueller Bestand
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label small"><strong>Zeitraum:</strong></label>
+                                        <div class="btn-group flex-wrap w-100" role="group">
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setStatsPeriod('week')">
+                                                <i class="fas fa-calendar-week"></i> Woche
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setStatsPeriod('month')">
+                                                <i class="fas fa-calendar-day"></i> Monat
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setStatsPeriod('30days')">
+                                                <i class="fas fa-calendar-minus"></i> 30 Tage
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm" onclick="setStatsPeriod('year')">
+                                                <i class="fas fa-calendar"></i> Jahr
+                                            </button>
+                                            <button type="button" class="btn btn-outline-primary btn-sm active" onclick="setStatsPeriod('all')">
+                                                <i class="fas fa-infinity"></i> Alle
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="row">
+                                            <div class="col-6">
+                                                <input type="date" class="form-control form-control-sm" id="statsDateFrom" placeholder="Von">
+                                            </div>
+                                            <div class="col-6">
+                                                <input type="date" class="form-control form-control-sm" id="statsDateTo" placeholder="Bis">
+                                            </div>
+                                        </div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary mt-2 w-100" onclick="setStatsCustomRange()">
+                                            <i class="fas fa-search"></i> Benutzerdef. Zeitraum
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-2">
+                                    <small class="text-muted">Aktueller Zeitraum: <span id="currentStatsPeriod">Gesamte Zeit</span></small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Gesamtübersicht -->
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-center bg-primary text-white">
+                            <div class="card-body">
+                                <i class="fas fa-sheep fa-2x mb-2"></i>
+                                <h3 class="card-title" id="statTotalSheep">0</h3>
+                                <p class="card-text" id="statTotalLabel">Gesamt</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-center bg-success text-white">
+                            <div class="card-body">
+                                <i class="fas fa-tag fa-2x mb-2"></i>
+                                <h3 class="card-title" id="statWithEarTags">0</h3>
+                                <p class="card-text">Mit Ohrmarke</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-center bg-warning text-dark">
+                            <div class="card-body">
+                                <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                                <h3 class="card-title" id="statNeedEarTags">0</h3>
+                                <p class="card-text">Benötigen Ohrmarke</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 mb-4">
+                        <div class="card text-center bg-secondary text-white">
+                            <div class="card-body">
+                                <i class="fas fa-trash fa-2x mb-2"></i>
+                                <h3 class="card-title" id="statDeleted">0</h3>
+                                <p class="card-text" id="statDeletedLabel">Gelöschte</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Geschlechterverteilung -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-venus-mars"></i> Geschlechterverteilung</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Weiblich</span>
+                                        <span id="statFemaleCount">0</span>
+                                    </div>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar" style="background-color: #e91e63;" id="statFemaleBar"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Männlich</span>
+                                        <span id="statMaleCount">0</span>
+                                    </div>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar bg-info" id="statMaleBar"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Nicht angegeben</span>
+                                        <span id="statUnknownCount">0</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-secondary" id="statUnknownBar"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Altersverteilung -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-birthday-cake"></i> Altersverteilung</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Lämmer (0-5 Monate)</span>
+                                        <span id="statLambs">0</span>
+                                    </div>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar bg-success" id="statLambsBar"></div>
+                                    </div>
+                                </div>
+                                <div class="mb-2">
+                                    <div class="d-flex justify-content-between">
+                                        <span>Jungtiere (5-12 Monate)</span>
+                                        <span id="statYoung">0</span>
+                                    </div>
+                                    <div class="progress mb-2">
+                                        <div class="progress-bar bg-warning" id="statYoungBar"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div class="d-flex justify-content-between">
+                                        <span>Erwachsene (12+ Monate)</span>
+                                        <span id="statAdults">0</span>
+                                    </div>
+                                    <div class="progress">
+                                        <div class="progress-bar bg-primary" id="statAdultsBar"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Neugeborene -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-baby"></i> Geborene Schafe <small id="birthsPeriodLabel">(gesamte Zeit)</small></h5>
+                            </div>
+                            <div class="card-body" id="recentBirths">
+                                <!-- Wird dynamisch gefüllt -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Mütter mit Nachwuchs -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-heart"></i> Mütter mit Nachwuchs</h5>
+                            </div>
+                            <div class="card-body" id="mothersWithChildren">
+                                <!-- Wird dynamisch gefüllt -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Löschungsstatistiken -->
+                    <div class="col-md-12 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Löschungsstatistiken</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="row" id="deletionStats">
+                                    <!-- Wird dynamisch gefüllt -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Schaf bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editForm">
+                        <input type="hidden" id="editSheepId">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editName" class="form-label">Name *</label>
+                                    <input type="text" class="form-control" id="editName" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editBirthDate" class="form-label">Geburtsdatum *</label>
+                                    <input type="date" class="form-control" id="editBirthDate" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editEarTag" class="form-label">Ohrmarkennummer</label>
+                                    <input type="text" class="form-control" id="editEarTag">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editGender" class="form-label">Geschlecht</label>
+                                    <select class="form-select" id="editGender">
+                                        <option value="">Nicht angegeben</option>
+                                        <option value="weiblich">Weiblich</option>
+                                        <option value="männlich">Männlich</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editMotherSheep" class="form-label">Mutterschaf</label>
+                                    <select class="form-select" id="editMotherSheep">
+                                        <option value="">Kein Mutterschaf zuordnen</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="editNotes" class="form-label">Notizen</label>
+                                    <textarea class="form-control" id="editNotes" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-success" onclick="saveEditedSheep()">Änderungen speichern</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Schaf löschen</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="deleteSheepId">
+                    <p>Möchten Sie das Schaf "<span id="deleteSheepName"></span>" wirklich löschen?</p>
+                    <div class="mb-3">
+                        <label for="deleteReason" class="form-label">Grund für das Löschen *</label>
+                        <select class="form-select" id="deleteReason" required>
+                            <option value="">Grund auswählen...</option>
+                            <option value="verkauft">Verkauft</option>
+                            <option value="verstorben">Verstorben</option>
+                            <option value="geschlachtet">Geschlachtet</option>
+                            <option value="verloren">Verloren/Entlaufen</option>
+                            <option value="anderer_betrieb">An anderen Betrieb abgegeben</option>
+                            <option value="sonstiges">Sonstiges</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deleteNotes" class="form-label">Zusätzliche Notizen</label>
+                        <textarea class="form-control" id="deleteNotes" rows="2" placeholder="Optionale Details..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="button" class="btn btn-danger" onclick="confirmDelete()">Schaf löschen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let sheep = [];
+
+        // Daten aus localStorage laden
+        function loadData() {
+            const savedSheep = localStorage.getItem('sheep');
+            
+            if (savedSheep) {
+                sheep = JSON.parse(savedSheep);
+            }
+        }
+
+        // Daten in localStorage speichern
+        function saveData() {
+            localStorage.setItem('sheep', JSON.stringify(sheep));
+        }
+
+        // Schaf hinzufügen
+        document.getElementById('sheepForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const birthDate = document.getElementById('birthDate').value;
+            const today = new Date().toISOString().split('T')[0];
+            
+            if (birthDate > today) {
+                alert('Das Geburtsdatum kann nicht in der Zukunft liegen!');
+                return;
+            }
+            
+            const newSheep = {
+                id: Date.now().toString(),
+                name: document.getElementById('sheepName').value,
+                birthDate: birthDate,
+                earTag: document.getElementById('earTag').value,
+                gender: document.getElementById('gender').value,
+                motherSheepId: document.getElementById('motherSheep').value,
+                notes: document.getElementById('notes').value,
+                createdAt: new Date().toISOString()
+            };
+
+            sheep.push(newSheep);
+            saveData();
+            displaySheep();
+            updateMotherSheepDropdowns();
+            checkAlerts();
+            resetForm();
+            
+            // Zur Übersicht wechseln
+            const overviewTab = new bootstrap.Tab(document.querySelector('[href="#overview"]'));
+            overviewTab.show();
+            
+            alert('Schaf erfolgreich hinzugefügt!');
+        });
+
+        // Formular zurücksetzen
+        function resetForm() {
+            document.getElementById('sheepForm').reset();
+        }
+
+        // Schafe anzeigen
+        function displaySheep() {
+            const container = document.getElementById('sheepContainer');
+            const sortBy = document.getElementById('sortSelect').value;
+            const filterBy = document.getElementById('filterSelect').value;
+            
+            // Filtern
+            let filteredSheep = [...sheep];
+            switch(filterBy) {
+                case 'active':
+                    filteredSheep = sheep.filter(s => !s.deleted);
+                    break;
+                case 'deleted':
+                    filteredSheep = sheep.filter(s => s.deleted);
+                    break;
+                case 'noEarTag':
+                    filteredSheep = sheep.filter(s => !s.deleted && !s.earTag);
+                    break;
+                case 'withEarTag':
+                    filteredSheep = sheep.filter(s => !s.deleted && s.earTag);
+                    break;
+                case 'needsEarTag':
+                    filteredSheep = sheep.filter(s => {
+                        const age = calculateAge(s.birthDate);
+                        return !s.deleted && !s.earTag && age.totalMonths >= 5;
+                    });
+                    break;
+                case 'all':
+                default:
+                    filteredSheep = [...sheep];
+                    break;
+            }
+            
+            // Sortieren
+            const sortedSheep = filteredSheep.sort((a, b) => {
+                switch(sortBy) {
+                    case 'name':
+                        return a.name.localeCompare(b.name);
+                    case 'birthDate':
+                        return new Date(b.birthDate) - new Date(a.birthDate);
+                    case 'earTag':
+                        return (a.earTag || '').localeCompare(b.earTag || '');
+                    default:
+                        return 0;
+                }
+            });
+
+            container.innerHTML = '';
+            
+            if (sortedSheep.length === 0) {
+                const filterBy = document.getElementById('filterSelect').value;
+                let message = 'Noch keine Schafe registriert.';
+                
+                if (sheep.length > 0) {
+                    switch(filterBy) {
+                        case 'active':
+                            message = 'Keine aktiven Schafe gefunden.';
+                            break;
+                        case 'deleted':
+                            message = 'Keine gelöschten Schafe gefunden.';
+                            break;
+                        case 'noEarTag':
+                            message = 'Keine aktiven Schafe ohne Ohrmarke gefunden.';
+                            break;
+                        case 'withEarTag':
+                            message = 'Keine aktiven Schafe mit Ohrmarke gefunden.';
+                            break;
+                        case 'needsEarTag':
+                            message = 'Keine aktiven Schafe gefunden, die eine Ohrmarke benötigen.';
+                            break;
+                    }
+                }
+                
+                container.innerHTML = `<div class="col-12"><div class="alert alert-info">${message}</div></div>`;
+                return;
+            }
+
+            sortedSheep.forEach(s => {
+                const age = calculateAge(s.birthDate);
+                const motherName = s.motherSheepId ? (sheep.find(m => m.id === s.motherSheepId && !m.deleted)?.name || 'Unbekannt') : 'Keine';
+                const needsEarTag = !s.earTag && age.months >= 5 && !s.deleted;
+                
+                const card = document.createElement('div');
+                card.className = 'col-md-6 col-lg-4 mb-3';
+                
+                let cardContent = '';
+                if (s.deleted) {
+                    // Gelöschte Schafe
+                    cardContent = `
+                        <div class="card sheep-card" style="border-left: 4px solid #6c757d; opacity: 0.7;">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="card-title mb-0">${s.name} <span class="badge bg-secondary">Gelöscht</span></h5>
+                                </div>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        <i class="fas fa-birthday-cake"></i> ${formatDate(s.birthDate)} (${age.display})<br>
+                                        <i class="fas fa-tag"></i> ${s.earTag || 'Keine Ohrmarke'}<br>
+                                        <i class="fas fa-venus-mars"></i> ${s.gender || 'Nicht angegeben'}<br>
+                                        <i class="fas fa-heart"></i> Mutter: ${motherName}<br>
+                                        <i class="fas fa-calendar-times"></i> Gelöscht: ${formatDate(s.deletedAt)}<br>
+                                        <i class="fas fa-info-circle"></i> Grund: ${s.deleteReason}
+                                    </small>
+                                </p>
+                                ${s.deleteNotes ? `<p class="card-text"><small><i class="fas fa-sticky-note"></i> ${s.deleteNotes}</small></p>` : ''}
+                                <div class="d-flex action-buttons">
+                                    <button class="btn btn-sm btn-outline-success" onclick="restoreSheep('${s.id}')">
+                                        <i class="fas fa-undo"></i> Wiederherstellen
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="permanentDelete('${s.id}')">
+                                        <i class="fas fa-trash-alt"></i> Endgültig löschen
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else {
+                    // Aktive Schafe - Farbkodierung für Ohrmarken-Status
+                    let cardStyle = '';
+                    let badgeContent = '';
+                    
+                    if (!s.earTag) {
+                        if (age.totalMonths >= 5) {
+                            // Über 5 Monate ohne Ohrmarke = ROT
+                            cardStyle = 'border-left: 4px solid #dc3545; background-color: #fff5f5;';
+                            badgeContent = '<span class="badge bg-danger">Ohrmarke erforderlich!</span>';
+                        } else {
+                            // Unter 5 Monate ohne Ohrmarke = GELB
+                            cardStyle = 'border-left: 4px solid #ffc107; background-color: #fffbf0;';
+                            badgeContent = '<span class="badge bg-warning text-dark">Noch keine Ohrmarke nötig</span>';
+                        }
+                    } else {
+                        // Mit Ohrmarke = Standard grün
+                        cardStyle = 'border-left: 4px solid #28a745;';
+                    }
+                    
+                    cardContent = `
+                        <div class="card sheep-card" style="${cardStyle}">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-start mb-2">
+                                    <h5 class="card-title mb-0">${s.name}</h5>
+                                    ${badgeContent}
+                                </div>
+                                <p class="card-text">
+                                    <small class="text-muted">
+                                        <i class="fas fa-birthday-cake"></i> ${formatDate(s.birthDate)} (${age.display})<br>
+                                        <i class="fas fa-tag"></i> ${s.earTag || 'Keine Ohrmarke'}<br>
+                                        <i class="fas fa-venus-mars"></i> ${s.gender || 'Nicht angegeben'}<br>
+                                        <i class="fas fa-heart"></i> Mutter: ${motherName}
+                                    </small>
+                                </p>
+                                ${s.notes ? `<p class="card-text"><small><i class="fas fa-sticky-note"></i> ${s.notes}</small></p>` : ''}
+                                <div class="d-flex action-buttons">
+                                    <button class="btn btn-sm btn-outline-primary" onclick="editSheep('${s.id}')">
+                                        <i class="fas fa-edit"></i> Bearbeiten
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger" onclick="deleteSheep('${s.id}')">
+                                        <i class="fas fa-trash"></i> Löschen
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                card.innerHTML = cardContent;
+                container.appendChild(card);
+            });
+        }
+
+        // Schafe filtern
+        function filterSheep() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const cards = document.querySelectorAll('.sheep-card');
+            
+            cards.forEach(card => {
+                const text = card.textContent.toLowerCase();
+                const parent = card.closest('.col-md-6');
+                if (text.includes(searchTerm)) {
+                    parent.style.display = '';
+                } else {
+                    parent.style.display = 'none';
+                }
+            });
+        }
+
+        // Schaf bearbeiten
+        function editSheep(id) {
+            const s = sheep.find(sheep => sheep.id === id);
+            if (!s) return;
+
+            document.getElementById('editSheepId').value = s.id;
+            document.getElementById('editName').value = s.name;
+            document.getElementById('editBirthDate').value = s.birthDate;
+            document.getElementById('editEarTag').value = s.earTag || '';
+            document.getElementById('editGender').value = s.gender || '';
+            document.getElementById('editMotherSheep').value = s.motherSheepId || '';
+            document.getElementById('editNotes').value = s.notes || '';
+
+            updateMotherSheepDropdowns();
+            
+            const modal = new bootstrap.Modal(document.getElementById('editModal'));
+            modal.show();
+        }
+
+        // Bearbeitetes Schaf speichern
+        function saveEditedSheep() {
+            const id = document.getElementById('editSheepId').value;
+            const sheepIndex = sheep.findIndex(s => s.id === id);
+            
+            if (sheepIndex === -1) return;
+            
+            const birthDate = document.getElementById('editBirthDate').value;
+            const today = new Date().toISOString().split('T')[0];
+            
+            if (birthDate > today) {
+                alert('Das Geburtsdatum kann nicht in der Zukunft liegen!');
+                return;
+            }
+
+            sheep[sheepIndex] = {
+                ...sheep[sheepIndex],
+                name: document.getElementById('editName').value,
+                birthDate: birthDate,
+                earTag: document.getElementById('editEarTag').value,
+                gender: document.getElementById('editGender').value,
+                motherSheepId: document.getElementById('editMotherSheep').value,
+                notes: document.getElementById('editNotes').value
+            };
+
+            saveData();
+            displaySheep();
+            updateMotherSheepDropdowns();
+            checkAlerts();
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
+            modal.hide();
+            
+            alert('Schaf erfolgreich aktualisiert!');
+        }
+
+        // Schaf löschen vorbereiten
+        function deleteSheep(id) {
+            const s = sheep.find(sheep => sheep.id === id);
+            if (!s) return;
+
+            document.getElementById('deleteSheepId').value = s.id;
+            document.getElementById('deleteSheepName').textContent = s.name;
+            document.getElementById('deleteReason').value = '';
+            document.getElementById('deleteNotes').value = '';
+            
+            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        }
+
+        // Löschen bestätigen (Soft Delete)
+        function confirmDelete() {
+            const id = document.getElementById('deleteSheepId').value;
+            const reason = document.getElementById('deleteReason').value;
+            const notes = document.getElementById('deleteNotes').value;
+            
+            if (!reason) {
+                alert('Bitte geben Sie einen Grund für das Löschen an.');
+                return;
+            }
+
+            const sheepIndex = sheep.findIndex(s => s.id === id);
+            if (sheepIndex === -1) return;
+
+            // Schaf als gelöscht markieren statt es zu entfernen
+            sheep[sheepIndex].deleted = true;
+            sheep[sheepIndex].deletedAt = new Date().toISOString();
+            sheep[sheepIndex].deleteReason = reason;
+            sheep[sheepIndex].deleteNotes = notes;
+            
+            saveData();
+            displaySheep();
+            updateMotherSheepDropdowns();
+            checkAlerts();
+            
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteModal'));
+            modal.hide();
+            
+            alert('Schaf wurde als gelöscht markiert!');
+        }
+
+        // Endgültig löschen
+        function permanentDelete(id) {
+            const confirmPermanent = confirm('Sind Sie sicher, dass Sie dieses Schaf ENDGÜLTIG löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden!');
+            
+            if (!confirmPermanent) return;
+            
+            const sheepIndex = sheep.findIndex(s => s.id === id);
+            if (sheepIndex === -1) return;
+            
+            sheep.splice(sheepIndex, 1);
+            
+            saveData();
+            displaySheep();
+            updateMotherSheepDropdowns();
+            
+            alert('Schaf wurde endgültig gelöscht!');
+        }
+
+        // Schaf wiederherstellen
+        function restoreSheep(id) {
+            const sheepIndex = sheep.findIndex(s => s.id === id);
+            if (sheepIndex === -1) return;
+            
+            delete sheep[sheepIndex].deleted;
+            delete sheep[sheepIndex].deletedAt;
+            delete sheep[sheepIndex].deleteReason;
+            delete sheep[sheepIndex].deleteNotes;
+            
+            saveData();
+            displaySheep();
+            updateMotherSheepDropdowns();
+            checkAlerts();
+            
+            alert('Schaf wurde wiederhergestellt!');
+        }
+
+        // Alter berechnen
+        function calculateAge(birthDate) {
+            const birth = new Date(birthDate);
+            const now = new Date();
+            
+            // Zeitdifferenz in Millisekunden
+            const diffTime = now.getTime() - birth.getTime();
+            const totalDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+            
+            // Jahre, Monate und Tage berechnen
+            let years = now.getFullYear() - birth.getFullYear();
+            let months = now.getMonth() - birth.getMonth();
+            let days = now.getDate() - birth.getDate();
+            
+            // Tage korrigieren
+            if (days < 0) {
+                months--;
+                // Letzter Tag des Vormonats
+                const prevMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+                days += prevMonth.getDate();
+            }
+            
+            // Monate korrigieren
+            if (months < 0) {
+                years--;
+                months += 12;
+            }
+            
+            const totalMonths = years * 12 + months;
+            
+            let display = '';
+            if (years > 0) {
+                display = `${years} Jahr${years !== 1 ? 'e' : ''}`;
+                if (months > 0) display += `, ${months} Monat${months !== 1 ? 'e' : ''}`;
+                if (days > 0) display += `, ${days} Tag${days !== 1 ? 'e' : ''}`;
+            } else if (months > 0) {
+                display = `${months} Monat${months !== 1 ? 'e' : ''}`;
+                if (days > 0) display += `, ${days} Tag${days !== 1 ? 'e' : ''}`;
+            } else {
+                display = `${totalDays} Tag${totalDays !== 1 ? 'e' : ''}`;
+            }
+            
+            return { years, months, days, totalMonths, totalDays, display };
+        }
+
+        // Datum formatieren
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('de-DE');
+        }
+
+        // Mutterschaf-Dropdowns aktualisieren
+        function updateMotherSheepDropdowns() {
+            const dropdowns = [
+                document.getElementById('motherSheep'),
+                document.getElementById('editMotherSheep')
+            ];
+            
+            dropdowns.forEach(dropdown => {
+                if (!dropdown) return;
+                
+                const currentValue = dropdown.value;
+                dropdown.innerHTML = '<option value="">Kein Mutterschaf zuordnen</option>';
+                
+                // Nur aktive, weibliche Schafe als Mutterschafe anzeigen
+                sheep.filter(s => s.gender === 'weiblich' && !s.deleted).forEach(s => {
+                    const option = document.createElement('option');
+                    option.value = s.id;
+                    option.textContent = `${s.name} (${s.earTag || 'Keine Ohrmarke'})`;
+                    dropdown.appendChild(option);
+                });
+                
+                dropdown.value = currentValue;
+            });
+        }
+
+        // Alerts für Ohrmarken prüfen
+        function checkAlerts() {
+            const alertsContainer = document.getElementById('alertsContainer');
+            const alerts = [];
+            
+            // Nur aktive Schafe für Alerts berücksichtigen
+            sheep.filter(s => !s.deleted).forEach(s => {
+                const age = calculateAge(s.birthDate);
+                if (!s.earTag && age.totalMonths >= 5) {
+                    const urgency = age.totalMonths >= 12 ? 'DRINGEND' : 'erforderlich';
+                    alerts.push({
+                        sheep: s,
+                        age: age,
+                        message: `${s.name} benötigt ${urgency} eine Ohrmarke (${age.display} alt)`,
+                        urgent: age.totalMonths >= 12
+                    });
+                }
+            });
+            
+            if (alerts.length === 0) {
+                alertsContainer.innerHTML = '<div class="alert alert-success mb-0"><i class="fas fa-check-circle"></i> Alle Schafe sind ordnungsgemäß mit Ohrmarken versehen!</div>';
+            } else {
+                let html = '';
+                alerts.forEach(alert => {
+                    const alertClass = alert.urgent ? 'alert-danger' : 'alert-warning';
+                    const iconClass = alert.urgent ? 'fas fa-exclamation-circle' : 'fas fa-exclamation-triangle';
+                    const buttonClass = alert.urgent ? 'btn-outline-danger' : 'btn-outline-warning';
+                    
+                    html += `
+                        <div class="alert ${alertClass} mb-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span><i class="${iconClass}"></i> ${alert.message}</span>
+                                <button class="btn btn-sm ${buttonClass}" onclick="editSheep('${alert.sheep.id}')">
+                                    <i class="fas fa-tag"></i> Ohrmarke hinzufügen
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                alertsContainer.innerHTML = html;
+            }
+        }
+
+        // Daten exportieren
+        function exportData() {
+            const data = {
+                sheep: sheep,
+                exportDate: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').split('.')[0];
+            a.download = `schafverwaltung-backup-${timestamp}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            URL.revokeObjectURL(url);
+            alert('Backup erfolgreich heruntergeladen!');
+        }
+
+        // Daten importieren
+        function importData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (data.sheep && Array.isArray(data.sheep)) {
+                        const activeSheep = data.sheep.filter(s => !s.deleted).length;
+                        const deletedSheep = data.sheep.filter(s => s.deleted).length;
+                        const confirmImport = confirm(`Möchten Sie die Daten importieren? Dies wird ${activeSheep} aktive Schafe und ${deletedSheep} gelöschte Einträge laden. Ihre aktuellen Daten werden überschrieben!`);
+                        
+                        if (confirmImport) {
+                            sheep = data.sheep;
+                            saveData();
+                            displaySheep();
+                            updateMotherSheepDropdowns();
+                            checkAlerts();
+                            alert('Daten erfolgreich importiert!');
+                        }
+                    } else {
+                        alert('Ungültiges Backup-Format!');
+                    }
+                } catch (error) {
+                    alert('Fehler beim Laden der Datei: ' + error.message);
+                }
+            };
+            reader.readAsText(file);
+            
+            // Input zurücksetzen
+            event.target.value = '';
+        }
+
+        // App initialisieren
+        function initApp() {
+            loadData();
+            displaySheep();
+            updateMotherSheepDropdowns();
+            checkAlerts();
+        }
+
+        // Backup-Erinnerung beim Schließen der Seite
+        window.addEventListener('beforeunload', function(e) {
+            if (sheep.length > 0) {
+                const message = 'Vergessen Sie nicht, ein Backup Ihrer Schafverwaltung zu erstellen, bevor Sie die Seite verlassen!';
+                e.returnValue = message;
+                return message;
+            }
+        });
+
+        // Aktueller Statistikzeitraum und -modus
+        let currentStatsPeriod = 'all';
+        let currentStatsMode = 'all'; // 'all' = geboren im Zeitraum, 'active' = aktueller Bestand
+        let customDateFrom = null;
+        let customDateTo = null;
+
+        // Statistik-Modus setzen
+        function setStatsMode(mode) {
+            currentStatsMode = mode;
+            
+            // Button-Status aktualisieren
+            document.getElementById('statsModeAll').classList.remove('active');
+            document.getElementById('statsModeActive').classList.remove('active');
+            document.getElementById('statsMode' + (mode === 'all' ? 'All' : 'Active')).classList.add('active');
+            
+            updateStatistics();
+        }
+
+        // Zeitraum für Statistiken setzen
+        function setStatsPeriod(period) {
+            currentStatsPeriod = period;
+            customDateFrom = null;
+            customDateTo = null;
+            
+            // Button-Status aktualisieren - nur für Zeitraum-Buttons
+            const parentGroup = event.target.closest('.btn-group');
+            parentGroup.querySelectorAll('.btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            updateStatistics();
+        }
+
+        // Benutzerdefinierter Zeitraum
+        function setStatsCustomRange() {
+            const fromDate = document.getElementById('statsDateFrom').value;
+            const toDate = document.getElementById('statsDateTo').value;
+            
+            if (!fromDate || !toDate) {
+                alert('Bitte wählen Sie sowohl Start- als auch Enddatum aus.');
+                return;
+            }
+            
+            if (fromDate > toDate) {
+                alert('Das Startdatum muss vor dem Enddatum liegen.');
+                return;
+            }
+            
+            currentStatsPeriod = 'custom';
+            customDateFrom = new Date(fromDate);
+            customDateTo = new Date(toDate);
+            
+            // Nur Zeitraum-Button-Status zurücksetzen
+            document.querySelectorAll('.btn-group .btn-outline-primary').forEach(btn => btn.classList.remove('active'));
+            
+            updateStatistics();
+        }
+
+        // Filtere Schafe nach Zeitraum
+        function filterSheepByPeriod(sheepArray, useCreatedDate = false) {
+            const now = new Date();
+            let startDate, endDate;
+            
+            switch(currentStatsPeriod) {
+                case 'week':
+                    startDate = new Date(now);
+                    startDate.setDate(now.getDate() - now.getDay()); // Montag der aktuellen Woche
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate = new Date(startDate);
+                    endDate.setDate(startDate.getDate() + 6);
+                    endDate.setHours(23, 59, 59, 999);
+                    break;
+                    
+                case 'month':
+                    startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                    endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                    endDate.setHours(23, 59, 59, 999);
+                    break;
+                    
+                case '30days':
+                    startDate = new Date(now);
+                    startDate.setDate(now.getDate() - 30);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate = new Date(now);
+                    endDate.setHours(23, 59, 59, 999);
+                    break;
+                    
+                case 'year':
+                    startDate = new Date(now.getFullYear(), 0, 1);
+                    endDate = new Date(now.getFullYear(), 11, 31);
+                    endDate.setHours(23, 59, 59, 999);
+                    break;
+                    
+                case 'custom':
+                    startDate = new Date(customDateFrom);
+                    startDate.setHours(0, 0, 0, 0);
+                    endDate = new Date(customDateTo);
+                    endDate.setHours(23, 59, 59, 999);
+                    break;
+                    
+                case 'all':
+                default:
+                    return sheepArray;
+            }
+            
+            return sheepArray.filter(s => {
+                const dateToCheck = useCreatedDate ? new Date(s.createdAt || s.birthDate) : new Date(s.birthDate);
+                return dateToCheck >= startDate && dateToCheck <= endDate;
+            });
+        }
+
+        // Zeitraum-Label aktualisieren
+        function updatePeriodLabel() {
+            const now = new Date();
+            let label = '';
+            
+            switch(currentStatsPeriod) {
+                case 'week':
+                    const startOfWeek = new Date(now);
+                    startOfWeek.setDate(now.getDate() - now.getDay());
+                    const endOfWeek = new Date(startOfWeek);
+                    endOfWeek.setDate(startOfWeek.getDate() + 6);
+                    label = `${formatDate(startOfWeek.toISOString())} - ${formatDate(endOfWeek.toISOString())}`;
+                    break;
+                case 'month':
+                    label = now.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' });
+                    break;
+                case '30days':
+                    const thirtyDaysAgo = new Date(now);
+                    thirtyDaysAgo.setDate(now.getDate() - 30);
+                    label = `${formatDate(thirtyDaysAgo.toISOString())} - ${formatDate(now.toISOString())}`;
+                    break;
+                case 'year':
+                    label = now.getFullYear().toString();
+                    break;
+                case 'custom':
+                    label = `${formatDate(customDateFrom.toISOString())} - ${formatDate(customDateTo.toISOString())}`;
+                    break;
+                case 'all':
+                default:
+                    label = 'Gesamte Zeit';
+                    break;
+            }
+            
+            document.getElementById('currentStatsPeriod').textContent = label;
+            document.getElementById('birthsPeriodLabel').textContent = `(${label})`;
+            
+            // Labels für Karten aktualisieren
+            if (currentStatsMode === 'all') {
+                document.getElementById('statTotalLabel').textContent = 'Alle (inkl. gelöschte)';
+                document.getElementById('statDeletedLabel').textContent = 'Davon gelöscht';
+            } else {
+                document.getElementById('statTotalLabel').textContent = 'Aktueller Bestand';
+                document.getElementById('statDeletedLabel').textContent = 'Gelöschte (0)';
+            }
+        }
+
+        // Statistiken aktualisieren
+        function updateStatistics() {
+            updatePeriodLabel();
+            
+            let statsActiveSheep, statsDeletedSheep, allStatsSheep;
+            
+            if (currentStatsMode === 'all') {
+                // "Geboren im Zeitraum" - ALLE Schafe die im Zeitraum geboren wurden (aktive + gelöschte)
+                const activeSheep = sheep.filter(s => !s.deleted);
+                const deletedSheep = sheep.filter(s => s.deleted);
+                
+                statsActiveSheep = filterSheepByPeriod(activeSheep);
+                statsDeletedSheep = filterSheepByPeriod(deletedSheep);
+                allStatsSheep = [...statsActiveSheep, ...statsDeletedSheep]; // Alle Schafe des Zeitraums
+            } else {
+                // "Aktueller Bestand" - nur aktuell aktive Schafe, gefiltert nach Geburtsdatum
+                const activeSheep = sheep.filter(s => !s.deleted);
+                
+                statsActiveSheep = filterSheepByPeriod(activeSheep);
+                statsDeletedSheep = []; // Keine gelöschten im aktuellen Bestand
+                allStatsSheep = statsActiveSheep; // Nur aktive Schafe
+            }
+            
+            // Grundzahlen - basierend auf allStatsSheep (alle relevanten Schafe des Modus)
+            document.getElementById('statTotalSheep').textContent = allStatsSheep.length;
+            document.getElementById('statWithEarTags').textContent = allStatsSheep.filter(s => s.earTag).length;
+            document.getElementById('statDeleted').textContent = statsDeletedSheep.length;
+            
+            const needEarTags = allStatsSheep.filter(s => {
+                const age = calculateAge(s.birthDate);
+                return !s.deleted && !s.earTag && age.totalMonths >= 5; // Nur nicht-gelöschte brauchen Ohrmarken
+            });
+            document.getElementById('statNeedEarTags').textContent = needEarTags.length;
+            
+            // Geschlechterverteilung - basierend auf allen relevanten Schafen
+            const females = allStatsSheep.filter(s => s.gender === 'weiblich').length;
+            const males = allStatsSheep.filter(s => s.gender === 'männlich').length;
+            const unknown = allStatsSheep.filter(s => !s.gender || s.gender === '').length;
+            const total = allStatsSheep.length || 1; // Vermeide Division durch 0
+            
+            document.getElementById('statFemaleCount').textContent = females;
+            document.getElementById('statMaleCount').textContent = males;
+            document.getElementById('statUnknownCount').textContent = unknown;
+            
+            document.getElementById('statFemaleBar').style.width = `${(females / total) * 100}%`;
+            document.getElementById('statMaleBar').style.width = `${(males / total) * 100}%`;
+            document.getElementById('statUnknownBar').style.width = `${(unknown / total) * 100}%`;
+            
+            // Altersverteilung - basierend auf allen relevanten Schafen
+            const lambs = allStatsSheep.filter(s => {
+                const age = calculateAge(s.birthDate);
+                return age.totalMonths < 5;
+            }).length;
+            
+            const young = allStatsSheep.filter(s => {
+                const age = calculateAge(s.birthDate);
+                return age.totalMonths >= 5 && age.totalMonths < 12;
+            }).length;
+            
+            const adults = allStatsSheep.filter(s => {
+                const age = calculateAge(s.birthDate);
+                return age.totalMonths >= 12;
+            }).length;
+            
+            document.getElementById('statLambs').textContent = lambs;
+            document.getElementById('statYoung').textContent = young;
+            document.getElementById('statAdults').textContent = adults;
+            
+            document.getElementById('statLambsBar').style.width = `${(lambs / total) * 100}%`;
+            document.getElementById('statYoungBar').style.width = `${(young / total) * 100}%`;
+            document.getElementById('statAdultsBar').style.width = `${(adults / total) * 100}%`;
+            
+            // Geborene Schafe = alle Schafe des gewählten Modus und Zeitraums
+            const recentBirths = allStatsSheep;
+            
+            const recentBirthsContainer = document.getElementById('recentBirths');
+            if (recentBirths.length === 0) {
+                const modeText = currentStatsMode === 'all' ? 'im gewählten Zeitraum geboren' : 'im aktuellen Bestand';
+                recentBirthsContainer.innerHTML = `<p class="text-muted">Keine Schafe ${modeText}.</p>`;
+            } else {
+                recentBirthsContainer.innerHTML = recentBirths.map(s => {
+                    const age = calculateAge(s.birthDate);
+                    const status = s.deleted ? ' (gelöscht)' : '';
+                    return `<div class="mb-1"><strong>${s.name}${status}</strong> - ${formatDate(s.birthDate)} (${age.display})</div>`;
+                }).join('');
+            }
+            
+            // Mütter mit Nachwuchs - basierend auf allen relevanten Schafen
+            const mothers = allStatsSheep.filter(s => s.gender === 'weiblich');
+            const mothersWithChildren = mothers.filter(mother => {
+                return allStatsSheep.some(child => child.motherSheepId === mother.id);
+            });
+            
+            const mothersContainer = document.getElementById('mothersWithChildren');
+            if (mothersWithChildren.length === 0) {
+                mothersContainer.innerHTML = '<p class="text-muted">Keine Muttertiere mit registriertem Nachwuchs.</p>';
+            } else {
+                mothersContainer.innerHTML = mothersWithChildren.map(mother => {
+                    const children = allStatsSheep.filter(s => s.motherSheepId === mother.id);
+                    return `<div class="mb-2">
+                        <strong>${mother.name}${mother.deleted ? ' (gelöscht)' : ''}</strong> 
+                        <small class="text-muted">(${children.length} ${children.length === 1 ? 'Kind' : 'Kinder'})</small>
+                        <br><small>${children.map(c => c.name + (c.deleted ? ' (gelöscht)' : '')).join(', ')}</small>
+                    </div>`;
+                }).join('');
+            }
+            
+            // Löschungsstatistiken - basierend auf Geburtsdatum der gelöschten Schafe
+            const deletionReasons = {};
+            statsDeletedSheep.forEach(s => {
+                if (s.deleteReason) {
+                    deletionReasons[s.deleteReason] = (deletionReasons[s.deleteReason] || 0) + 1;
+                }
+            });
+            
+            const deletionStatsContainer = document.getElementById('deletionStats');
+            if (Object.keys(deletionReasons).length === 0) {
+                deletionStatsContainer.innerHTML = '<div class="col-12"><p class="text-muted">Keine Löschungen dokumentiert.</p></div>';
+            } else {
+                const reasonLabels = {
+                    'verkauft': 'Verkauft',
+                    'verstorben': 'Verstorben',
+                    'geschlachtet': 'Geschlachtet',
+                    'verloren': 'Verloren/Entlaufen',
+                    'anderer_betrieb': 'Anderer Betrieb',
+                    'sonstiges': 'Sonstiges'
+                };
+                
+                deletionStatsContainer.innerHTML = Object.entries(deletionReasons).map(([reason, count]) => {
+                    const label = reasonLabels[reason] || reason;
+                    return `
+                        <div class="col-md-4 mb-2">
+                            <div class="card text-center">
+                                <div class="card-body py-2">
+                                    <h5 class="card-title mb-1">${count}</h5>
+                                    <p class="card-text small mb-0">${label}</p>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+        }
+
+        // App starten
+        document.addEventListener('DOMContentLoaded', initApp);
+    </script>
+</body>
+</html>
