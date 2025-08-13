@@ -106,6 +106,7 @@
                     </div>
                     <div class="col-md-4">
                         <select class="form-select" id="sortSelect" onchange="displaySheep()">
+                            <option value="number">Nach Nummer sortieren</option>
                             <option value="name">Nach Name sortieren</option>
                             <option value="birthDate">Nach Geburtsdatum sortieren</option>
                             <option value="earTag">Nach Ohrmarke sortieren</option>
@@ -157,8 +158,8 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="sheepName" class="form-label">Name *</label>
-                                        <input type="text" class="form-control" id="sheepName" required>
+                                        <label for="sheepName" class="form-label">Name (optional)</label>
+                                        <input type="text" class="form-control" id="sheepName" placeholder="z.B. Bella, Max, etc.">
                                     </div>
                                 </div>
                                 <div class="col-md-6">
@@ -454,8 +455,8 @@
                         <div class="row">
                             <div class="col-md-6">
                                 <div class="mb-3">
-                                    <label for="editName" class="form-label">Name *</label>
-                                    <input type="text" class="form-control" id="editName" required>
+                                    <label for="editName" class="form-label">Name (optional)</label>
+                                    <input type="text" class="form-control" id="editName" placeholder="z.B. Bella, Max, etc.">
                                 </div>
                             </div>
                             <div class="col-md-6">
@@ -548,6 +549,15 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         let sheep = [];
+        
+        // Nächste Schafnummer generieren
+        function getNextSheepNumber() {
+            if (sheep.length === 0) return 1;
+            
+            // Finde die höchste Nummer (auch bei gelöschten Schafen)
+            const maxNumber = Math.max(...sheep.map(s => s.number || 0));
+            return maxNumber + 1;
+        }
 
         // Daten aus localStorage laden
         function loadData() {
@@ -555,6 +565,20 @@
             
             if (savedSheep) {
                 sheep = JSON.parse(savedSheep);
+                
+                // Für bestehende Schafe ohne Nummer: Nummern nachträglich vergeben
+                let nextNum = 1;
+                sheep.forEach(s => {
+                    if (!s.number) {
+                        s.number = nextNum++;
+                    }
+                });
+                
+                // Sortiere nach Nummer, um Lücken zu vermeiden
+                sheep.sort((a, b) => (a.number || 0) - (b.number || 0));
+                
+                // Speichere die aktualisierten Daten
+                saveData();
             }
         }
 
@@ -575,9 +599,13 @@
                 return;
             }
             
+            // Nächste laufende Nummer generieren
+            const nextNumber = getNextSheepNumber();
+            
             const newSheep = {
                 id: Date.now().toString(),
-                name: document.getElementById('sheepName').value,
+                number: nextNumber,
+                name: document.getElementById('sheepName').value || `Schaf #${nextNumber}`,
                 birthDate: birthDate,
                 earTag: document.getElementById('earTag').value,
                 gender: document.getElementById('gender').value,
@@ -641,6 +669,8 @@
             // Sortieren
             const sortedSheep = filteredSheep.sort((a, b) => {
                 switch(sortBy) {
+                    case 'number':
+                        return (a.number || 0) - (b.number || 0);
                     case 'name':
                         return a.name.localeCompare(b.name);
                     case 'birthDate':
@@ -697,7 +727,7 @@
                         <div class="card sheep-card" style="border-left: 4px solid #6c757d; opacity: 0.7;">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h5 class="card-title mb-0">${s.name} <span class="badge bg-secondary">Gelöscht</span></h5>
+                                    <h5 class="card-title mb-0">#${s.number || 'N/A'} - ${s.name} <span class="badge bg-secondary">Gelöscht</span></h5>
                                 </div>
                                 <p class="card-text">
                                     <small class="text-muted">
@@ -745,7 +775,7 @@
                         <div class="card sheep-card" style="${cardStyle}">
                             <div class="card-body">
                                 <div class="d-flex justify-content-between align-items-start mb-2">
-                                    <h5 class="card-title mb-0">${s.name}</h5>
+                                    <h5 class="card-title mb-0">#${s.number || 'N/A'} - ${s.name}</h5>
                                     ${badgeContent}
                                 </div>
                                 <p class="card-text">
@@ -825,9 +855,11 @@
                 return;
             }
 
+            const editedName = document.getElementById('editName').value || `Schaf #${sheep[sheepIndex].number}`;
+            
             sheep[sheepIndex] = {
                 ...sheep[sheepIndex],
-                name: document.getElementById('editName').value,
+                name: editedName,
                 birthDate: birthDate,
                 earTag: document.getElementById('editEarTag').value,
                 gender: document.getElementById('editGender').value,
@@ -995,7 +1027,7 @@
                 sheep.filter(s => s.gender === 'weiblich' && !s.deleted).forEach(s => {
                     const option = document.createElement('option');
                     option.value = s.id;
-                    option.textContent = `${s.name} (${s.earTag || 'Keine Ohrmarke'})`;
+                    option.textContent = `#${s.number || 'N/A'} - ${s.name} (${s.earTag || 'Keine Ohrmarke'})`;
                     dropdown.appendChild(option);
                 });
                 
@@ -1361,7 +1393,7 @@
                 recentBirthsContainer.innerHTML = recentBirths.map(s => {
                     const age = calculateAge(s.birthDate);
                     const status = s.deleted ? ' (gelöscht)' : '';
-                    return `<div class="mb-1"><strong>${s.name}${status}</strong> - ${formatDate(s.birthDate)} (${age.display})</div>`;
+                    return `<div class="mb-1"><strong>#${s.number || 'N/A'} - ${s.name}${status}</strong> - ${formatDate(s.birthDate)} (${age.display})</div>`;
                 }).join('');
             }
             
@@ -1378,9 +1410,9 @@
                 mothersContainer.innerHTML = mothersWithChildren.map(mother => {
                     const children = allStatsSheep.filter(s => s.motherSheepId === mother.id);
                     return `<div class="mb-2">
-                        <strong>${mother.name}${mother.deleted ? ' (gelöscht)' : ''}</strong> 
+                        <strong>#${mother.number || 'N/A'} - ${mother.name}${mother.deleted ? ' (gelöscht)' : ''}</strong> 
                         <small class="text-muted">(${children.length} ${children.length === 1 ? 'Kind' : 'Kinder'})</small>
-                        <br><small>${children.map(c => c.name + (c.deleted ? ' (gelöscht)' : '')).join(', ')}</small>
+                        <br><small>${children.map(c => `#${c.number || 'N/A'} - ${c.name}` + (c.deleted ? ' (gelöscht)' : '')).join(', ')}</small>
                     </div>`;
                 }).join('');
             }
