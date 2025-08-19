@@ -7,6 +7,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
         :root {
             --primary: #6366f1;
@@ -2340,7 +2341,7 @@
                                 <span>Position</span>
                                 <span>Beschreibung</span>
                                 <span>Menge</span>
-                                <span>Einzelpreis (€)</span>
+                                <span>Einzelpreis Brutto (€)</span>
                                 <span>MwSt. (%)</span>
                                 <span>Gesamt (€)</span>
                                 <span>Aktion</span>
@@ -2360,7 +2361,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Standard-Steuersatz für neue Positionen (%):</label>
-                                <input type="number" id="invoice-tax-rate" value="19" min="0" max="100" step="0.01">
+                                <input type="number" id="invoice-tax-rate" value="10" min="0" max="100" step="0.01">
                                 <small style="color: #666;">Wird für neue Positionen als Voreinstellung verwendet</small>
                             </div>
                             <div class="form-group">
@@ -4106,7 +4107,7 @@
                 doc.text('Position', 25, tableStartY + 7);
                 doc.text('Beschreibung', 60, tableStartY + 7);
                 doc.text('Menge', 120, tableStartY + 7);
-                doc.text('Einzelpreis', 140, tableStartY + 7);
+                doc.text('Einzelpreis Brutto', 140, tableStartY + 7);
                 doc.text('Gesamtpreis', 165, tableStartY + 7);
                 
                 // Invoice Items
@@ -4171,7 +4172,7 @@
                 doc.text('Bei Fragen zur Rechnung wenden Sie sich gerne an uns.', 20, yPosition + 5);
                 
                 doc.text(`Erstellt am: ${new Date().toLocaleString('de-DE')}`, 20, yPosition + 15);
-                doc.text('Hotel Verwaltungssystem - Moderne Hotelmanagement-Software', 20, yPosition + 20);
+                doc.text(`${companyData.name || 'Hotel Verwaltungssystem'} - Moderne Hotelmanagement-Software`, 20, yPosition + 20);
                 
                 // Save PDF
                 const fileName = `Rechnung_${booking.id}_${booking.lastname}.pdf`;
@@ -4335,7 +4336,7 @@
             const checkoutDate = new Date(booking.checkout);
             const nights = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
             
-            const defaultTaxRate = parseFloat(document.getElementById('invoice-tax-rate').value) || 19;
+            const defaultTaxRate = parseFloat(document.getElementById('invoice-tax-rate').value) ?? 10;
             const roomDisplay = room.name 
                 ? `Zimmer ${booking.room} "${room.name}"`
                 : `Zimmer ${booking.room}`;
@@ -4349,11 +4350,11 @@
         }
 
         function addInvoiceItemWithDefaultTax() {
-            const defaultTaxRate = parseFloat(document.getElementById('invoice-tax-rate').value) || 19;
+            const defaultTaxRate = parseFloat(document.getElementById('invoice-tax-rate').value) ?? 10;
             addInvoiceItem('', 1, 0, defaultTaxRate);
         }
 
-        function addInvoiceItem(description = '', quantity = 1, unitPrice = 0, taxRate = 19) {
+        function addInvoiceItem(description = '', quantity = 1, unitPrice = 0, taxRate = 10) {
             invoiceItemCounter++;
             const itemId = `item-${invoiceItemCounter}`;
             
@@ -4362,7 +4363,7 @@
                 description: description,
                 quantity: parseFloat(quantity) || 1,
                 unitPrice: parseFloat(unitPrice) || 0,
-                taxRate: parseFloat(taxRate) || 19
+                taxRate: parseFloat(taxRate) ?? 10
             };
 
             currentInvoiceItems.push(item);
@@ -4381,7 +4382,7 @@
             // Ensure all items have a taxRate
             currentInvoiceItems.forEach(item => {
                 if (item.taxRate === undefined || item.taxRate === null) {
-                    item.taxRate = 19; // Default tax rate
+                    item.taxRate = 10; // Default tax rate
                 }
             });
 
@@ -4393,7 +4394,7 @@
                     <textarea rows="2" placeholder="Beschreibung" onchange="updateInvoiceItem('${item.id}', 'description', this.value)">${item.description}</textarea>
                     <input type="number" min="0" step="0.01" value="${item.quantity}" onchange="updateInvoiceItem('${item.id}', 'quantity', this.value)">
                     <input type="number" min="0" step="0.01" value="${item.unitPrice.toFixed(2)}" onchange="updateInvoiceItem('${item.id}', 'unitPrice', this.value)">
-                    <input type="number" min="0" max="100" step="0.01" value="${(item.taxRate || 19).toFixed(2)}" onchange="updateInvoiceItem('${item.id}', 'taxRate', this.value)">
+                    <input type="number" min="0" max="100" step="0.01" value="${(item.taxRate ?? 10).toFixed(2)}" onchange="updateInvoiceItem('${item.id}', 'taxRate', this.value)">
                     <span class="item-total">€${(item.quantity * item.unitPrice).toFixed(2)}</span>
                     <button type="button" class="btn btn-danger btn-sm" onclick="removeInvoiceItem('${item.id}')" title="Position entfernen">
                         <i class="fas fa-trash"></i>
@@ -4418,22 +4419,24 @@
         }
 
         function calculateInvoiceTotal() {
-            let subtotal = 0;
+            let netSubtotal = 0;
             let totalTaxAmount = 0;
+            let grossTotal = 0;
 
             currentInvoiceItems.forEach(item => {
-                const itemSubtotal = item.quantity * item.unitPrice;
-                const itemTaxAmount = (itemSubtotal * (item.taxRate || 19)) / 100;
+                const grossItemTotal = item.quantity * item.unitPrice; // unitPrice ist jetzt Brutto
+                const taxRate = item.taxRate ?? 10;
+                const netItemTotal = grossItemTotal / (1 + taxRate / 100);
+                const itemTaxAmount = grossItemTotal - netItemTotal;
                 
-                subtotal += itemSubtotal;
+                netSubtotal += netItemTotal;
                 totalTaxAmount += itemTaxAmount;
+                grossTotal += grossItemTotal;
             });
 
-            const total = subtotal + totalTaxAmount;
-
-            document.getElementById('invoice-subtotal').textContent = `€${subtotal.toFixed(2)}`;
+            document.getElementById('invoice-subtotal').textContent = `€${netSubtotal.toFixed(2)}`;
             document.getElementById('invoice-tax').textContent = `€${totalTaxAmount.toFixed(2)}`;
-            document.getElementById('invoice-total').textContent = `€${total.toFixed(2)}`;
+            document.getElementById('invoice-total').textContent = `€${grossTotal.toFixed(2)}`;
         }
 
         function generateAdvancedInvoice() {
@@ -4462,10 +4465,10 @@
                     try {
                         // Use the pre-converted logo data URL
                         const logoImg = document.getElementById('hotel-logo');
-                        const logoWidth = 40;
+                        const logoWidth = 25;
                         const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
                         doc.addImage(logoDataURL, 'PNG', 20, yPosition, logoWidth, logoHeight);
-                        yPosition = Math.max(yPosition + logoHeight + 5, yPosition + 25);
+                        yPosition = Math.max(yPosition + logoHeight + 3, yPosition + 20);
                     } catch (error) {
                         console.warn('Could not add logo to PDF:', error);
                         yPosition += 5;
@@ -4475,11 +4478,12 @@
                 }
 
                 // Company Header
-                doc.setFontSize(20);
+                yPosition += 5; // Etwas Abstand zum Logo
+                doc.setFontSize(16);
                 doc.setTextColor(99, 102, 241);
                 doc.text(companyData.name, 20, yPosition);
                 
-                yPosition += 7;
+                yPosition += 6;
                 if (companyData.subtitle) {
                     doc.setFontSize(12);
                     doc.text(companyData.subtitle, 20, yPosition);
@@ -4513,12 +4517,15 @@
                 
                 doc.setFontSize(10);
                 doc.setTextColor(0, 0, 0);
+                const invoiceDate = new Date().toLocaleDateString('de-DE');
                 doc.text(`Rechnungsnummer: ${bookingId}`, 120, 40);
-                doc.text(`Rechnungsdatum: ${new Date().toLocaleDateString('de-DE')}`, 120, 45);
+                doc.text(`Rechnungsdatum: ${invoiceDate}`, 120, 45);
                 doc.text(`Buchungsnummer: ${bookingId}`, 120, 50);
                 
+                
                 // Customer Details
-                yPosition = Math.max(yPosition + 20, 70);
+                yPosition = Math.max(yPosition + 10, 60);
+                const customerStartY = yPosition;
                 doc.setFontSize(12);
                 doc.setTextColor(99, 102, 241);
                 doc.text('Rechnungsadresse:', 20, yPosition);
@@ -4552,26 +4559,26 @@
                     doc.text(phone, 20, yPosition);
                 }
                 
-                // Booking Details
-                yPosition += 20;
+                // Booking Details - rechts neben der Rechnungsadresse
+                let bookingDetailsY = customerStartY;
                 doc.setFontSize(12);
                 doc.setTextColor(99, 102, 241);
-                doc.text('Buchungsdetails:', 20, yPosition);
+                doc.text('Buchungsdetails:', 120, bookingDetailsY);
                 
-                yPosition += 10;
+                bookingDetailsY += 10;
                 doc.setFontSize(10);
                 doc.setTextColor(0, 0, 0);
                 
                 const checkin = document.getElementById('invoice-checkin').value;
                 const checkout = document.getElementById('invoice-checkout').value;
-                doc.text(`Check-in: ${formatDate(checkin)}`, 20, yPosition);
-                yPosition += 5;
-                doc.text(`Check-out: ${formatDate(checkout)}`, 20, yPosition);
-                yPosition += 5;
-                doc.text(`${document.getElementById('invoice-room').value}`, 20, yPosition);
+                doc.text(`Check-in: ${formatDate(checkin)}`, 120, bookingDetailsY);
+                bookingDetailsY += 5;
+                doc.text(`Check-out: ${formatDate(checkout)}`, 120, bookingDetailsY);
+                bookingDetailsY += 5;
+                doc.text(`${document.getElementById('invoice-room').value}`, 120, bookingDetailsY);
                 
-                // Invoice Items Table
-                yPosition += 20;
+                // Invoice Items Table - nach dem längeren Block positionieren
+                yPosition = Math.max(yPosition, bookingDetailsY) + 10;
                 const tableStartY = yPosition;
                 
                 // Table header
@@ -4579,11 +4586,12 @@
                 doc.rect(20, tableStartY, 170, 10, 'F');
                 
                 doc.setTextColor(255, 255, 255);
-                doc.setFontSize(10);
+                doc.setFontSize(9);
                 doc.text('Pos.', 25, tableStartY + 7);
                 doc.text('Beschreibung', 40, tableStartY + 7);
-                doc.text('Menge', 120, tableStartY + 7);
-                doc.text('Einzelpreis', 140, tableStartY + 7);
+                doc.text('Menge', 110, tableStartY + 7);
+                doc.text('Einzelpreis', 130, tableStartY + 7);
+                doc.text('MwSt.%', 150, tableStartY + 7);
                 doc.text('Gesamtpreis', 165, tableStartY + 7);
                 
                 // Table items
@@ -4592,63 +4600,67 @@
                 
                 currentInvoiceItems.forEach((item, index) => {
                     const itemTotal = item.quantity * item.unitPrice;
+                    const taxRate = item.taxRate ?? 10;
                     
+                    doc.setFontSize(9);
                     doc.text(`${index + 1}`, 25, yPosition);
                     
                     // Handle long descriptions
                     const description = item.description || '';
-                    const maxDescriptionWidth = 75;
+                    const maxDescriptionWidth = 65;
                     const descriptionLines = doc.splitTextToSize(description, maxDescriptionWidth);
                     doc.text(descriptionLines, 40, yPosition);
                     
-                    doc.text(`${item.quantity}`, 125, yPosition);
-                    doc.text(`€${item.unitPrice.toFixed(2)}`, 145, yPosition);
-                    doc.text(`€${itemTotal.toFixed(2)}`, 170, yPosition);
+                    doc.text(`${item.quantity}`, 112, yPosition);
+                    doc.text(`€${item.unitPrice.toFixed(2)}`, 132, yPosition);
+                    doc.text(`${taxRate}%`, 152, yPosition);
+                    doc.text(`€${itemTotal.toFixed(2)}`, 167, yPosition);
                     
                     yPosition += Math.max(5, descriptionLines.length * 5);
                 });
                 
                 // Add line below items
-                yPosition += 5;
+                yPosition += 3;
                 doc.line(20, yPosition, 190, yPosition);
                 
-                // Totals with individual tax rates
-                let subtotal = 0;
+                // Totals with individual tax rates (Brutto-Rechnung)
+                let netSubtotal = 0;
                 let totalTaxAmount = 0;
+                let grossTotal = 0;
                 const taxBreakdown = new Map();
 
                 currentInvoiceItems.forEach(item => {
-                    const itemSubtotal = item.quantity * item.unitPrice;
-                    const taxRate = item.taxRate || 19;
-                    const itemTaxAmount = (itemSubtotal * taxRate) / 100;
+                    const grossItemTotal = item.quantity * item.unitPrice; // unitPrice ist jetzt Brutto
+                    const taxRate = item.taxRate ?? 10;
+                    const netItemTotal = grossItemTotal / (1 + taxRate / 100);
+                    const itemTaxAmount = grossItemTotal - netItemTotal;
                     
-                    subtotal += itemSubtotal;
+                    netSubtotal += netItemTotal;
                     totalTaxAmount += itemTaxAmount;
+                    grossTotal += grossItemTotal;
                     
                     // Group by tax rate for breakdown
                     const taxKey = taxRate.toFixed(1);
                     if (!taxBreakdown.has(taxKey)) {
                         taxBreakdown.set(taxKey, { subtotal: 0, tax: 0 });
                     }
-                    taxBreakdown.get(taxKey).subtotal += itemSubtotal;
+                    taxBreakdown.get(taxKey).subtotal += netItemTotal;
                     taxBreakdown.get(taxKey).tax += itemTaxAmount;
                 });
-
-                const total = subtotal + totalTaxAmount;
                 
-                yPosition += 15;
+                yPosition += 8;
                 doc.text('Zwischensumme:', 140, yPosition);
-                doc.text(`€${subtotal.toFixed(2)}`, 170, yPosition);
+                doc.text(`€${netSubtotal.toFixed(2)}`, 175, yPosition);
                 
                 yPosition += 8;
                 // Show tax breakdown by rate
                 if (taxBreakdown.size === 1) {
                     const [taxRate] = taxBreakdown.keys();
                     doc.text(`MwSt. (${taxRate}%):`, 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 170, yPosition);
+                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
                 } else {
                     doc.text('MwSt.:', 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 170, yPosition);
+                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
                     yPosition += 5;
                     doc.setFontSize(8);
                     for (const [taxRate, breakdown] of taxBreakdown) {
@@ -4665,10 +4677,18 @@
                 doc.setFontSize(12);
                 doc.setTextColor(99, 102, 241);
                 doc.text('Gesamtbetrag:', 140, yPosition);
-                doc.text(`€${total.toFixed(2)}`, 170, yPosition);
+                doc.text(`€${grossTotal.toFixed(2)}`, 175, yPosition);
                 
-                // Payment and Remarks
-                yPosition += 20;
+                // QR Code hinzufügen
+                const qrData = `RG:${bookingId}|DATUM:${invoiceDate}|BETRAG:€${grossTotal.toFixed(2)}`;
+                const qr = new QRious({
+                    value: qrData,
+                    size: 80
+                });
+                doc.addImage(qr.toDataURL(), 'PNG', 20, yPosition - 25, 25, 25);
+                
+                // Payment and Remarks  
+                yPosition += 10;
                 doc.setFontSize(10);
                 doc.setTextColor(0, 0, 0);
                 
@@ -4676,15 +4696,6 @@
                 doc.text('Zahlungsart:', 20, yPosition);
                 doc.text(payment, 60, yPosition);
                 
-                const remarks = document.getElementById('invoice-remarks').value;
-                if (remarks) {
-                    yPosition += 10;
-                    doc.text('Bemerkungen:', 20, yPosition);
-                    yPosition += 5;
-                    const remarkLines = doc.splitTextToSize(remarks, 170);
-                    doc.text(remarkLines, 20, yPosition);
-                    yPosition += remarkLines.length * 5;
-                }
 
                 // Bank details if available
                 if (companyData.iban) {
@@ -4705,7 +4716,7 @@
                 }
                 
                 // Footer
-                yPosition = Math.max(yPosition + 20, 260);
+                yPosition = Math.max(yPosition + 10, 250);
                 doc.setFontSize(8);
                 doc.setTextColor(128, 128, 128);
                 doc.text('Vielen Dank für Ihren Aufenthalt bei uns!', 20, yPosition);
@@ -4713,7 +4724,7 @@
                 
                 // Legal footer
                 yPosition += 15;
-                let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | Hotel Verwaltungssystem`;
+                let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | ${companyData.name || 'Hotel Verwaltungssystem'}`;
                 if (companyData.manager) {
                     footerText += ` | Geschäftsführer: ${companyData.manager}`;
                 }
