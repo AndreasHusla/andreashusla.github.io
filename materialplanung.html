@@ -170,6 +170,7 @@
             padding: 15px;
             margin-bottom: 20px;
             border-radius: 4px;
+            position: relative;
         }
 
         .alert.success {
@@ -182,6 +183,156 @@
             background-color: #f8d7da;
             color: #721c24;
             border: 1px solid #f5c6cb;
+        }
+
+        .alert.warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .alert.info {
+            background-color: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        .alert-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .alert-title {
+            font-weight: bold;
+            margin: 0;
+        }
+
+        .alert-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .alert-btn {
+            background: none;
+            border: 1px solid currentColor;
+            color: inherit;
+            padding: 4px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            opacity: 0.8;
+            transition: opacity 0.2s;
+        }
+
+        .alert-btn:hover {
+            opacity: 1;
+            background-color: rgba(0,0,0,0.05);
+        }
+
+        .alert-content {
+            margin-top: 10px;
+        }
+
+        .show-more-btn {
+            background: none;
+            border: none;
+            color: inherit;
+            text-decoration: underline;
+            cursor: pointer;
+            padding: 5px 0;
+            margin-top: 10px;
+            font-size: 13px;
+            opacity: 0.8;
+        }
+
+        .show-more-btn:hover {
+            opacity: 1;
+        }
+
+        .hidden-content {
+            display: none;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(0,0,0,0.1);
+        }
+
+        .hidden-content.visible {
+            display: block;
+        }
+
+        .correction-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 2px solid rgba(0,0,0,0.1);
+            background-color: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            padding: 12px;
+        }
+
+        .correction-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: inherit;
+        }
+
+        .correction-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 6px;
+            background-color: rgba(255,255,255,0.2);
+            border-radius: 3px;
+            font-size: 13px;
+        }
+
+        .correction-description {
+            flex-grow: 1;
+            margin-right: 10px;
+        }
+
+        .correction-btn {
+            background: rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.2);
+            color: inherit;
+            padding: 3px 8px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+        }
+
+        .correction-btn:hover {
+            background: rgba(0,0,0,0.2);
+        }
+
+        .correction-btn.applied {
+            background: rgba(0,128,0,0.3);
+            border-color: rgba(0,128,0,0.5);
+        }
+
+        .bulk-corrections {
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .bulk-correction-btn {
+            background: rgba(0,0,0,0.1);
+            border: 1px solid rgba(0,0,0,0.3);
+            color: inherit;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            margin: 0 5px;
+            transition: all 0.2s;
+        }
+
+        .bulk-correction-btn:hover {
+            background: rgba(0,0,0,0.2);
         }
 
         .hidden {
@@ -447,6 +598,12 @@
                 </div>
                 
                 <div class="card">
+                    <h3>System-Check</h3>
+                    <button onclick="showCriticalSituations()">🔍 System-Check durchführen</button>
+                    <p><small>Überprüft das System auf kritische Situationen und Inkonsistenzen</small></p>
+                </div>
+                
+                <div class="card">
                     <h3>Daten löschen</h3>
                     <button onclick="clearAllData()" class="danger">Alle Daten löschen</button>
                     <p><small>Achtung: Dieser Vorgang kann nicht rückgängig gemacht werden!</small></p>
@@ -500,22 +657,89 @@
             localStorage.setItem('materialplanung', JSON.stringify(data));
         }
 
+        // Erweiterte Validierung für manuelle Eingaben
+        function validateManualProductInput(productNumber, productName, productCost) {
+            const validation = validateProductData(productNumber, productName, productCost);
+            
+            // Zusätzliche Prüfungen für manuelle Eingabe
+            if (products[productNumber]) {
+                validation.errors.push('Produktnummer bereits vorhanden!');
+            }
+            
+            return validation;
+        }
+
+        function validateManualBOMInput(mainProduct, bomItems) {
+            const errors = [];
+            const warnings = [];
+            
+            if (!mainProduct) {
+                errors.push('Hauptprodukt muss ausgewählt werden');
+                return { errors, warnings };
+            }
+            
+            if (!products[mainProduct]) {
+                warnings.push(`Hauptprodukt "${mainProduct}" existiert nicht in der Produktliste`);
+            }
+            
+            const components = [];
+            let hasValidComponents = false;
+            
+            bomItems.forEach((item, index) => {
+                const component = item.querySelector('select').value;
+                const quantity = item.querySelector('input').value;
+                
+                if (component || quantity) { // Nur validieren wenn mindestens ein Feld ausgefüllt
+                    const bomValidation = validateBOMData(mainProduct, component, quantity);
+                    
+                    bomValidation.errors.forEach(error => {
+                        errors.push(`Bauteil ${index + 1}: ${error}`);
+                    });
+                    bomValidation.warnings.forEach(warning => {
+                        warnings.push(`Bauteil ${index + 1}: ${warning}`);
+                    });
+                    
+                    if (component && quantity && !isNaN(parseInt(quantity)) && parseInt(quantity) > 0) {
+                        if (components.includes(component)) {
+                            warnings.push(`Bauteil ${index + 1}: Komponente "${component}" bereits vorhanden`);
+                        } else {
+                            components.push(component);
+                            hasValidComponents = true;
+                        }
+                    }
+                }
+            });
+            
+            if (!hasValidComponents) {
+                errors.push('Mindestens eine gültige Komponente erforderlich');
+            }
+            
+            return { errors, warnings };
+        }
+
         // Produkte verwalten
         document.getElementById('productForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
-            const productNumber = document.getElementById('productNumber').value;
-            const productName = document.getElementById('productName').value;
-            const productCost = parseFloat(document.getElementById('productCost').value);
+            const productNumber = document.getElementById('productNumber').value.trim();
+            const productName = document.getElementById('productName').value.trim();
+            const productCost = document.getElementById('productCost').value;
             
-            if (products[productNumber]) {
-                showAlert('Produktnummer bereits vorhanden!', 'error');
+            const validation = validateManualProductInput(productNumber, productName, productCost);
+            
+            if (validation.errors.length > 0) {
+                showAlert(`Eingabefehler:\n${validation.errors.join('\n')}`, 'error');
                 return;
+            }
+            
+            if (validation.warnings.length > 0) {
+                const proceed = confirm(`Warnungen:\n${validation.warnings.join('\n')}\n\nTrotzdem fortfahren?`);
+                if (!proceed) return;
             }
             
             products[productNumber] = {
                 name: productName,
-                cost: productCost
+                cost: parseFloat(productCost) || 0
             };
             
             saveData();
@@ -631,6 +855,19 @@
             const productNumber = document.getElementById('bomProduct').value;
             const bomItems = document.querySelectorAll('#bomItems .bom-item');
             
+            const validation = validateManualBOMInput(productNumber, bomItems);
+            
+            if (validation.errors.length > 0) {
+                showAlert(`Stücklisten-Fehler:\n${validation.errors.join('\n')}`, 'error');
+                return;
+            }
+            
+            if (validation.warnings.length > 0) {
+                const proceed = confirm(`Warnungen:\n${validation.warnings.join('\n')}\n\nTrotzdem fortfahren?`);
+                if (!proceed) return;
+            }
+            
+            // Erstelle BOM-Daten
             const bomData = {};
             bomItems.forEach(item => {
                 const component = item.querySelector('select').value;
@@ -641,8 +878,12 @@
                 }
             });
             
-            if (Object.keys(bomData).length === 0) {
-                showAlert('Mindestens ein Bauteil erforderlich!', 'error');
+            // Prüfe auf Zyklus VOR dem Speichern
+            const tempBoms = { ...boms };
+            tempBoms[productNumber] = bomData;
+            
+            if (wouldCreateCycle(productNumber, tempBoms)) {
+                showAlert('Fehler: Diese Stückliste würde eine zirkuläre Referenz erzeugen!', 'error');
                 return;
             }
             
@@ -654,14 +895,57 @@
             showAlert('Stückliste gespeichert!', 'success');
         });
 
+        // Prüft ob eine Stückliste einen Zyklus erzeugen würde
+        function wouldCreateCycle(productNumber, testBoms) {
+            function hasPath(from, to, visited = new Set()) {
+                if (from === to) return true;
+                if (visited.has(from)) return false;
+                
+                visited.add(from);
+                
+                if (testBoms[from]) {
+                    for (const component of Object.keys(testBoms[from])) {
+                        if (hasPath(component, to, visited)) {
+                            return true;
+                        }
+                    }
+                }
+                
+                return false;
+            }
+            
+            // Prüfe ob irgendeine Komponente einen Weg zurück zum Hauptprodukt hat
+            if (testBoms[productNumber]) {
+                for (const component of Object.keys(testBoms[productNumber])) {
+                    if (hasPath(component, productNumber, new Set())) {
+                        return true;
+                    }
+                }
+            }
+            
+            return false;
+        }
+
         // Lagerstand verwalten
         document.getElementById('inventoryForm').addEventListener('submit', function(e) {
             e.preventDefault();
             
             const productNumber = document.getElementById('inventoryProduct').value;
-            const quantity = parseInt(document.getElementById('inventoryQuantity').value);
+            const quantity = document.getElementById('inventoryQuantity').value;
             
-            inventory[productNumber] = quantity;
+            const validation = validateInventoryData(productNumber, quantity);
+            
+            if (validation.errors.length > 0) {
+                showAlert(`Lagerstand-Fehler:\n${validation.errors.join('\n')}`, 'error');
+                return;
+            }
+            
+            if (validation.warnings.length > 0) {
+                const proceed = confirm(`Warnungen:\n${validation.warnings.join('\n')}\n\nTrotzdem fortfahren?`);
+                if (!proceed) return;
+            }
+            
+            inventory[productNumber] = parseInt(quantity) || 0;
             saveData();
             renderTables();
             this.reset();
@@ -721,6 +1005,626 @@
             showAlert(`Bedarf für ${productNumber} - ${products[productNumber].name} hinzugefügt!`, 'success');
         });
 
+        // Erweiterte Validierungsfunktionen
+        function validateProductData(productNumber, productName, cost) {
+            const errors = [];
+            const warnings = [];
+            
+            // Produktnummer validieren
+            if (!productNumber || productNumber.trim() === '') {
+                errors.push('Produktnummer ist erforderlich');
+            } else if (productNumber.length > 20) {
+                warnings.push(`Produktnummer "${productNumber}" ist sehr lang (>20 Zeichen)`);
+            } else if (!/^[a-zA-Z0-9\-_]+$/.test(productNumber)) {
+                warnings.push(`Produktnummer "${productNumber}" enthält Sonderzeichen`);
+            }
+            
+            // Produktname validieren
+            if (!productName || productName.trim() === '') {
+                errors.push('Produktname ist erforderlich');
+            } else if (productName.length > 100) {
+                warnings.push(`Produktname ist sehr lang (>100 Zeichen)`);
+            }
+            
+            // Kosten validieren
+            if (cost === null || cost === undefined || cost === '') {
+                warnings.push('Kosten nicht angegeben (wird auf 0 gesetzt)');
+            } else if (isNaN(parseFloat(cost))) {
+                errors.push(`Ungültige Kosten: "${cost}"`);
+            } else {
+                const numCost = parseFloat(cost);
+                if (numCost < 0) {
+                    warnings.push('Negative Kosten sind ungewöhnlich');
+                } else if (numCost > 100000) {
+                    warnings.push(`Sehr hohe Kosten: ${numCost.toFixed(2)}€`);
+                }
+            }
+            
+            return { errors, warnings };
+        }
+
+        function validateBOMData(mainProduct, component, quantity) {
+            const errors = [];
+            const warnings = [];
+            
+            // Hauptprodukt prüfen
+            if (!mainProduct || mainProduct.trim() === '') {
+                errors.push('Hauptprodukt ist erforderlich');
+            } else if (!products[mainProduct]) {
+                warnings.push(`Hauptprodukt "${mainProduct}" existiert nicht in der Produktliste`);
+            }
+            
+            // Komponente prüfen
+            if (!component || component.trim() === '') {
+                errors.push('Komponente ist erforderlich');
+            } else if (!products[component]) {
+                warnings.push(`Komponente "${component}" existiert nicht in der Produktliste`);
+            }
+            
+            // Selbstreferenz prüfen
+            if (mainProduct === component) {
+                errors.push(`Selbstreferenz: "${mainProduct}" kann sich nicht selbst enthalten`);
+            }
+            
+            // Menge prüfen
+            if (!quantity || quantity === '') {
+                errors.push('Menge ist erforderlich');
+            } else if (isNaN(parseInt(quantity))) {
+                errors.push(`Ungültige Menge: "${quantity}"`);
+            } else {
+                const numQuantity = parseInt(quantity);
+                if (numQuantity <= 0) {
+                    errors.push('Menge muss größer als 0 sein');
+                } else if (numQuantity > 1000) {
+                    warnings.push(`Sehr hohe Menge: ${numQuantity}`);
+                }
+            }
+            
+            return { errors, warnings };
+        }
+
+        function validateInventoryData(productNumber, quantity) {
+            const errors = [];
+            const warnings = [];
+            
+            // Produktnummer prüfen
+            if (!productNumber || productNumber.trim() === '') {
+                errors.push('Produktnummer ist erforderlich');
+            } else if (!products[productNumber]) {
+                warnings.push(`Produkt "${productNumber}" existiert nicht in der Produktliste`);
+            }
+            
+            // Menge prüfen
+            if (quantity === null || quantity === undefined || quantity === '') {
+                warnings.push('Menge nicht angegeben (wird auf 0 gesetzt)');
+            } else if (isNaN(parseInt(quantity))) {
+                errors.push(`Ungültige Menge: "${quantity}"`);
+            } else {
+                const numQuantity = parseInt(quantity);
+                if (numQuantity < 0) {
+                    warnings.push('Negative Lagerbestände sind ungewöhnlich');
+                } else if (numQuantity > 100000) {
+                    warnings.push(`Sehr hoher Lagerbestand: ${numQuantity}`);
+                }
+            }
+            
+            return { errors, warnings };
+        }
+
+        function checkForDuplicates(data, keyField) {
+            const seen = new Set();
+            const duplicates = [];
+            
+            data.forEach((item, index) => {
+                const key = item[keyField];
+                if (key && seen.has(key)) {
+                    duplicates.push({ key, line: index + 1 });
+                } else if (key) {
+                    seen.add(key);
+                }
+            });
+            
+            return duplicates;
+        }
+
+        function showValidationSummary(imported, errors, warnings, duplicates, fileName) {
+            const alertType = errors.length > 0 ? 'error' : (warnings.length > 0 || duplicates.length > 0) ? 'warning' : 'success';
+            const hasIssues = errors.length > 0 || warnings.length > 0 || duplicates.length > 0;
+            
+            // Import-Validierung: Persistent wenn Probleme vorhanden, Export-Option bei größeren Problem-Listen
+            const isPersistent = hasIssues && (errors.length > 0 || warnings.length > 5 || duplicates.length > 5);
+            const hasExportData = errors.length > 3 || warnings.length > 5 || duplicates.length > 3;
+            
+            // Erstelle erweiterte Alert-Daten mit vollständigen Listen und Korrekturen
+            const alertData = {
+                summary: `${fileName}: ${imported} Einträge importiert`,
+                errors: errors,
+                warnings: warnings,  
+                duplicates: duplicates,
+                fullMessage: createFullValidationMessage(fileName, imported, errors, warnings, duplicates),
+                corrections: generateCorrections(errors, warnings, duplicates)
+            };
+            
+            showExpandableAlert(alertData, alertType, { 
+                title: `Import-Validierung: ${fileName}`,
+                persistent: isPersistent,
+                exportData: hasExportData,
+                showCorrections: hasIssues
+            });
+        }
+
+        function createFullValidationMessage(fileName, imported, errors, warnings, duplicates) {
+            let message = `${fileName}: ${imported} Einträge importiert`;
+            
+            if (errors.length > 0) {
+                message += `\n\n❌ ${errors.length} Fehler:\n${errors.join('\n')}`;
+            }
+            
+            if (warnings.length > 0) {
+                message += `\n\n⚠️ ${warnings.length} Warnungen:\n${warnings.join('\n')}`;
+            }
+            
+            if (duplicates.length > 0) {
+                message += `\n\n🔄 ${duplicates.length} Duplikate erkannt:`;
+                duplicates.forEach(dup => {
+                    message += `\n  - "${dup.key}" (Zeile ${dup.line})`;
+                });
+            }
+            
+            return message;
+        }
+
+        // Generiere mögliche Korrekturen basierend auf Warnungen/Fehlern
+        function generateCorrections(errors, warnings, duplicates) {
+            const corrections = [];
+            
+            // 1. Fehlende Kosten korrigieren
+            const missingCostWarnings = warnings.filter(w => w.includes('Kosten nicht angegeben'));
+            if (missingCostWarnings.length > 0) {
+                corrections.push({
+                    type: 'missing_costs',
+                    description: `${missingCostWarnings.length} Produkte ohne Kosten auf 0€ setzen`,
+                    action: () => applyMissingCostCorrection(missingCostWarnings),
+                    severity: 'low'
+                });
+            }
+            
+            // 2. Unbekannte Produkte erstellen
+            const missingProductWarnings = warnings.filter(w => 
+                w.includes('existiert nicht in der Produktliste') && 
+                !w.includes('Hauptprodukt') // Nur Komponenten, nicht Hauptprodukte
+            );
+            if (missingProductWarnings.length > 0) {
+                corrections.push({
+                    type: 'missing_products',
+                    description: `${missingProductWarnings.length} fehlende Produkte automatisch erstellen`,
+                    action: () => applyMissingProductCorrection(missingProductWarnings),
+                    severity: 'medium'
+                });
+            }
+            
+            // 3. Duplikate entfernen
+            if (duplicates.length > 0) {
+                corrections.push({
+                    type: 'remove_duplicates',
+                    description: `${duplicates.length} Duplikate aus Import-Daten entfernen`,
+                    action: () => applyDuplicateCorrection(duplicates),
+                    severity: 'medium'
+                });
+            }
+            
+            // 4. System-Check Korrekturen aus der globalen Warnung
+            const systemWarnings = checkCriticalSituations();
+            
+            // Fehlende Komponenten in Produktliste erstellen
+            const missingComponents = [];
+            Object.keys(boms).forEach(bomKey => {
+                Object.keys(boms[bomKey]).forEach(component => {
+                    if (!products[component]) {
+                        missingComponents.push(component);
+                    }
+                });
+            });
+            if (missingComponents.length > 0) {
+                corrections.push({
+                    type: 'create_missing_components',
+                    description: `${missingComponents.length} fehlende Stücklisten-Komponenten als Produkte erstellen`,
+                    action: () => applyMissingComponentCorrection(missingComponents),
+                    severity: 'high'
+                });
+            }
+            
+            // Verwaiste Inventar-/Bedarf-Einträge bereinigen
+            const orphanedInventory = Object.keys(inventory).filter(key => !products[key]);
+            const orphanedDemand = Object.keys(demand).filter(key => !products[key]);
+            if (orphanedInventory.length > 0 || orphanedDemand.length > 0) {
+                corrections.push({
+                    type: 'cleanup_orphaned',
+                    description: `${orphanedInventory.length + orphanedDemand.length} verwaiste Einträge bereinigen`,
+                    action: () => applyOrphanedCleanup(orphanedInventory, orphanedDemand),
+                    severity: 'medium'
+                });
+            }
+            
+            return corrections.filter(c => c.description); // Nur gültige Korrekturen
+        }
+
+        // Korrektur-Anwendungen
+        function applyMissingCostCorrection(warnings) {
+            let fixed = 0;
+            warnings.forEach(warning => {
+                // Extrahiere Produktnummer aus Warnung (Format: "Zeile X: ...")
+                const match = warning.match(/Zeile [\d.]+: .* für "([^"]+)"/);
+                if (match) {
+                    const productNumber = match[1];
+                    if (products[productNumber] && (!products[productNumber].cost || products[productNumber].cost === 0)) {
+                        products[productNumber].cost = 0;
+                        fixed++;
+                    }
+                }
+            });
+            
+            if (fixed > 0) {
+                saveData();
+                renderTables();
+                return `${fixed} Produkte mit Kosten 0€ aktualisiert`;
+            }
+            return 'Keine Korrekturen angewendet';
+        }
+
+        function applyMissingProductCorrection(warnings) {
+            let created = 0;
+            warnings.forEach(warning => {
+                // Extrahiere Produktnummer aus verschiedenen Warnungsformaten
+                let productNumber = null;
+                
+                // Format: "Komponente 'X' existiert nicht"
+                let match = warning.match(/Komponente "([^"]+)" existiert nicht/);
+                if (!match) {
+                    // Format: "Zeile X: Komponente 'Y' existiert nicht"  
+                    match = warning.match(/Komponente "([^"]+)" existiert nicht/);
+                }
+                
+                if (match) {
+                    productNumber = match[1];
+                    if (productNumber && !products[productNumber]) {
+                        products[productNumber] = {
+                            name: `Auto-generiert: ${productNumber}`,
+                            cost: 0
+                        };
+                        created++;
+                    }
+                }
+            });
+            
+            if (created > 0) {
+                saveData();
+                updateProductSelects();
+                renderTables();
+                return `${created} Produkte automatisch erstellt`;
+            }
+            return 'Keine Produkte erstellt';
+        }
+
+        function applyMissingComponentCorrection(missingComponents) {
+            let created = 0;
+            missingComponents.forEach(component => {
+                if (!products[component]) {
+                    products[component] = {
+                        name: `Stücklisten-Komponente: ${component}`,
+                        cost: 0
+                    };
+                    created++;
+                }
+            });
+            
+            if (created > 0) {
+                saveData();
+                updateProductSelects();
+                renderTables();
+                return `${created} Stücklisten-Komponenten als Produkte erstellt`;
+            }
+            return 'Keine Komponenten erstellt';
+        }
+
+        function applyOrphanedCleanup(orphanedInventory, orphanedDemand) {
+            let cleaned = 0;
+            
+            orphanedInventory.forEach(key => {
+                delete inventory[key];
+                cleaned++;
+            });
+            
+            orphanedDemand.forEach(key => {
+                delete demand[key];
+                cleaned++;
+            });
+            
+            if (cleaned > 0) {
+                saveData();
+                renderTables();
+                return `${cleaned} verwaiste Einträge entfernt`;
+            }
+            return 'Keine Einträge bereinigt';
+        }
+
+        function applyDuplicateCorrection(duplicates) {
+            // Diese Funktion ist hauptsächlich informativ, da Duplikate bereits beim Import behandelt werden
+            return `${duplicates.length} Duplikate wurden bereits beim Import zusammengeführt`;
+        }
+
+        function showExpandableAlert(alertData, type, options = {}) {
+            const existingAlert = document.querySelector('.alert');
+            if (existingAlert) {
+                existingAlert.remove();
+            }
+            
+            const alert = document.createElement('div');
+            alert.className = `alert ${type}`;
+            
+            // Bestimme ob das Alert persistent sein soll
+            const isPersistent = options.persistent !== false && (type === 'warning' || type === 'error' || alertData.fullMessage.length > 100);
+            const hasExportableData = options.exportData || alertData.fullMessage.includes('\n');
+            
+            // Alert-Header mit Titel und Aktions-Buttons
+            if (isPersistent || hasExportableData) {
+                const alertHeader = document.createElement('div');
+                alertHeader.className = 'alert-header';
+                
+                const titleElement = document.createElement('div');
+                titleElement.className = 'alert-title';
+                titleElement.textContent = getAlertTitle(type, options.title);
+                
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'alert-actions';
+                
+                // Export-Button (wenn exportierbare Daten vorhanden)
+                if (hasExportableData) {
+                    const exportBtn = document.createElement('button');
+                    exportBtn.className = 'alert-btn';
+                    exportBtn.innerHTML = '📊 Export';
+                    exportBtn.title = 'Alle Details als Textdatei exportieren';
+                    exportBtn.onclick = () => exportAlertData(alertData.fullMessage, type, options);
+                    actionsDiv.appendChild(exportBtn);
+                }
+                
+                // Schließen-Button (für persistente Alerts)
+                if (isPersistent) {
+                    const closeBtn = document.createElement('button');
+                    closeBtn.className = 'alert-btn';
+                    closeBtn.innerHTML = '✕ Schließen';
+                    closeBtn.title = 'Meldung schließen';
+                    closeBtn.onclick = () => alert.remove();
+                    actionsDiv.appendChild(closeBtn);
+                }
+                
+                alertHeader.appendChild(titleElement);
+                alertHeader.appendChild(actionsDiv);
+                alert.appendChild(alertHeader);
+            }
+            
+            // Alert-Content mit zusammengefasster Ansicht
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'alert-content';
+            
+            let summaryMessage = alertData.summary;
+            let hasHiddenContent = false;
+            
+            // Zeige limitierte Anzahl von Fehlern/Warnungen
+            if (alertData.errors.length > 0) {
+                summaryMessage += `\n❌ ${alertData.errors.length} Fehler:\n${alertData.errors.slice(0, 5).join('\n')}`;
+                if (alertData.errors.length > 5) {
+                    summaryMessage += `\n... und ${alertData.errors.length - 5} weitere Fehler`;
+                    hasHiddenContent = true;
+                }
+            }
+            
+            if (alertData.warnings.length > 0) {
+                summaryMessage += `\n⚠️ ${alertData.warnings.length} Warnungen:\n${alertData.warnings.slice(0, 3).join('\n')}`;
+                if (alertData.warnings.length > 3) {
+                    summaryMessage += `\n... und ${alertData.warnings.length - 3} weitere Warnungen`;
+                    hasHiddenContent = true;
+                }
+            }
+            
+            if (alertData.duplicates.length > 0) {
+                summaryMessage += `\n🔄 ${alertData.duplicates.length} Duplikate erkannt:`;
+                alertData.duplicates.slice(0, 3).forEach(dup => {
+                    summaryMessage += `\n  - "${dup.key}" (Zeile ${dup.line})`;
+                });
+                if (alertData.duplicates.length > 3) {
+                    summaryMessage += `\n  ... und ${alertData.duplicates.length - 3} weitere`;
+                    hasHiddenContent = true;
+                }
+            }
+            
+            contentDiv.style.whiteSpace = 'pre-line';
+            contentDiv.style.textAlign = 'left';
+            contentDiv.style.maxHeight = isPersistent ? '400px' : '300px';
+            contentDiv.style.overflowY = 'auto';
+            contentDiv.textContent = summaryMessage;
+            
+            alert.appendChild(contentDiv);
+            
+            // "Alle anzeigen" Button hinzufügen wenn mehr Details vorhanden sind
+            if (hasHiddenContent) {
+                const showMoreBtn = document.createElement('button');
+                showMoreBtn.className = 'show-more-btn';
+                showMoreBtn.textContent = 'Alle Details anzeigen ▼';
+                
+                const hiddenDiv = document.createElement('div');
+                hiddenDiv.className = 'hidden-content';
+                hiddenDiv.style.whiteSpace = 'pre-line';
+                hiddenDiv.style.maxHeight = '300px';
+                hiddenDiv.style.overflowY = 'auto';
+                
+                // Vollständige Details für versteckten Bereich
+                let fullDetails = '';
+                
+                if (alertData.errors.length > 5) {
+                    fullDetails += `❌ Alle ${alertData.errors.length} Fehler:\n${alertData.errors.join('\n')}\n\n`;
+                }
+                
+                if (alertData.warnings.length > 3) {
+                    fullDetails += `⚠️ Alle ${alertData.warnings.length} Warnungen:\n${alertData.warnings.join('\n')}\n\n`;
+                }
+                
+                if (alertData.duplicates.length > 3) {
+                    fullDetails += `🔄 Alle ${alertData.duplicates.length} Duplikate:\n`;
+                    alertData.duplicates.forEach(dup => {
+                        fullDetails += `  - "${dup.key}" (Zeile ${dup.line})\n`;
+                    });
+                }
+                
+                hiddenDiv.textContent = fullDetails.trim();
+                
+                let isExpanded = false;
+                showMoreBtn.onclick = () => {
+                    isExpanded = !isExpanded;
+                    hiddenDiv.classList.toggle('visible', isExpanded);
+                    showMoreBtn.textContent = isExpanded ? 'Details ausblenden ▲' : 'Alle Details anzeigen ▼';
+                };
+                
+                alert.appendChild(showMoreBtn);
+                alert.appendChild(hiddenDiv);
+            }
+            
+            // Korrektur-Sektion hinzufügen wenn Korrekturen verfügbar sind
+            if (options.showCorrections && alertData.corrections && alertData.corrections.length > 0) {
+                const correctionSection = document.createElement('div');
+                correctionSection.className = 'correction-section';
+                
+                const correctionTitle = document.createElement('div');
+                correctionTitle.className = 'correction-title';
+                correctionTitle.innerHTML = `🔧 Automatische Korrekturen (${alertData.corrections.length})`;
+                correctionSection.appendChild(correctionTitle);
+                
+                // Einzelne Korrekturen
+                alertData.corrections.forEach((correction, index) => {
+                    const correctionItem = document.createElement('div');
+                    correctionItem.className = 'correction-item';
+                    
+                    const description = document.createElement('div');
+                    description.className = 'correction-description';
+                    
+                    const severityIcon = correction.severity === 'high' ? '🔴' : 
+                                        correction.severity === 'medium' ? '🟠' : '🟡';
+                    description.textContent = `${severityIcon} ${correction.description}`;
+                    
+                    const correctionBtn = document.createElement('button');
+                    correctionBtn.className = 'correction-btn';
+                    correctionBtn.textContent = 'Anwenden';
+                    correctionBtn.dataset.correctionId = index;
+                    
+                    let isApplied = false;
+                    correctionBtn.onclick = () => {
+                        if (!isApplied) {
+                            try {
+                                const result = correction.action();
+                                correctionBtn.textContent = '✓ Angewendet';
+                                correctionBtn.classList.add('applied');
+                                correctionBtn.disabled = true;
+                                isApplied = true;
+                                
+                                // Kurze Bestätigung anzeigen
+                                const tempMsg = document.createElement('div');
+                                tempMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: rgba(0,128,0,0.9); color: white; padding: 8px 12px; border-radius: 4px; z-index: 10001; font-size: 12px;';
+                                tempMsg.textContent = result;
+                                document.body.appendChild(tempMsg);
+                                setTimeout(() => tempMsg.remove(), 3000);
+                                
+                                // Nach Korrektur System-Check erneut durchführen wenn gewünscht
+                                if (correction.severity === 'high') {
+                                    setTimeout(() => {
+                                        if (confirm('Wichtige Korrektur angewendet. System-Check erneut durchführen?')) {
+                                            showCriticalSituations();
+                                        }
+                                    }, 1000);
+                                }
+                                
+                            } catch (error) {
+                                console.error('Korrektur-Fehler:', error);
+                                correctionBtn.textContent = '❌ Fehler';
+                                correctionBtn.style.backgroundColor = 'rgba(255,0,0,0.3)';
+                            }
+                        }
+                    };
+                    
+                    correctionItem.appendChild(description);
+                    correctionItem.appendChild(correctionBtn);
+                    correctionSection.appendChild(correctionItem);
+                });
+                
+                // Bulk-Aktionen
+                if (alertData.corrections.length > 1) {
+                    const bulkDiv = document.createElement('div');
+                    bulkDiv.className = 'bulk-corrections';
+                    
+                    const applyAllBtn = document.createElement('button');
+                    applyAllBtn.className = 'bulk-correction-btn';
+                    applyAllBtn.textContent = 'Alle Korrekturen anwenden';
+                    applyAllBtn.onclick = () => {
+                        if (confirm(`Wirklich alle ${alertData.corrections.length} Korrekturen anwenden?`)) {
+                            let appliedCount = 0;
+                            let results = [];
+                            
+                            alertData.corrections.forEach((correction, index) => {
+                                const btn = correctionSection.querySelector(`[data-correction-id="${index}"]`);
+                                if (!btn.disabled) {
+                                    try {
+                                        const result = correction.action();
+                                        btn.textContent = '✓ Angewendet';
+                                        btn.classList.add('applied');
+                                        btn.disabled = true;
+                                        appliedCount++;
+                                        results.push(result);
+                                    } catch (error) {
+                                        btn.textContent = '❌ Fehler';
+                                        btn.style.backgroundColor = 'rgba(255,0,0,0.3)';
+                                    }
+                                }
+                            });
+                            
+                            applyAllBtn.textContent = `✓ ${appliedCount} angewendet`;
+                            applyAllBtn.disabled = true;
+                            
+                            // Sammle alle Ergebnisse
+                            const tempMsg = document.createElement('div');
+                            tempMsg.style.cssText = 'position: fixed; top: 20px; right: 20px; background: rgba(0,128,0,0.9); color: white; padding: 12px; border-radius: 4px; z-index: 10001; font-size: 12px; max-width: 300px;';
+                            tempMsg.innerHTML = `<strong>${appliedCount} Korrekturen angewendet:</strong><br>${results.join('<br>')}`;
+                            document.body.appendChild(tempMsg);
+                            setTimeout(() => tempMsg.remove(), 5000);
+                        }
+                    };
+                    
+                    bulkDiv.appendChild(applyAllBtn);
+                    correctionSection.appendChild(bulkDiv);
+                }
+                
+                alert.appendChild(correctionSection);
+            }
+            
+            // Alert-Daten für Export speichern
+            currentAlertData = {
+                message: alertData.fullMessage,
+                type,
+                timestamp: new Date().toLocaleString('de-DE'),
+                options
+            };
+            
+            document.querySelector('.container').insertBefore(alert, document.querySelector('.tabs'));
+            
+            // Auto-Remove nur für nicht-persistente Alerts
+            if (!isPersistent) {
+                const displayTime = summaryMessage.length > 100 ? 8000 : 5000;
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.remove();
+                    }
+                }, displayTime);
+            }
+        }
+
         // Hilfsfunktion für robustes CSV-Lesen mit verschiedenen Kodierungen
         function readCSVFile(file, callback) {
             // Erste Versuche mit UTF-8
@@ -764,61 +1668,78 @@
             }
             
             readCSVFile(file, function(csv) {
-                const lines = csv.split(/\r?\n/);
+                const lines = csv.split(/\r?\n/).filter(line => line.trim());
+                const rawData = [];
+                const allErrors = [];
+                const allWarnings = [];
                 let imported = 0;
                 
+                // Parse und sammle alle Daten
                 lines.forEach((line, index) => {
                     line = line.trim();
-                    console.log(`Zeile ${index + 1}:`, line);
-                    if (line) { // Leere Zeilen überspringen
-                        // Spezielle Behandlung für Windows-Zeilenendings in den Daten selbst
-                        if (line.includes('\r')) {
-                            // Zeile enthält mehrere Datensätze, diese aufteilen
-                            const subLines = line.split('\r').filter(l => l.trim());
-                            console.log('SubLines gefunden:', subLines);
-                            subLines.forEach((subLine, subIndex) => {
-                                subLine = subLine.trim();
-                                if (subLine) {
-                                    const parts = subLine.split(';').map(s => s.trim());
-                                    console.log(`SubLine ${index + 1}.${subIndex + 1} Parts:`, parts);
-                                    const [productNumber, productName, cost] = parts;
-                                    const normalizedCost = cost ? cost.replace(',', '.') : cost;
-                                    console.log(`Debug Import: productNumber='${productNumber}', productName='${productName}', cost='${cost}', normalizedCost='${normalizedCost}', parseFloat(normalizedCost)=${parseFloat(normalizedCost)}, isNaN=${isNaN(parseFloat(normalizedCost))}`);
-                                    if (productNumber && productName && cost !== undefined && cost !== '' && !isNaN(parseFloat(normalizedCost))) {
-                                        products[productNumber] = {
-                                            name: productName,
-                                            cost: parseFloat(normalizedCost)
-                                        };
-                                        imported++;
-                                        console.log('Importiert Produkt:', productNumber, productName, parseFloat(normalizedCost));
-                                    }
-                                }
-                            });
-                        } else {
-                            const parts = line.split(';').map(s => s.trim());
-                            console.log('Parts:', parts);
+                    if (line) {
+                        const processLine = (dataLine, lineNumber) => {
+                            const parts = dataLine.split(';').map(s => s.trim());
                             const [productNumber, productName, cost] = parts;
                             const normalizedCost = cost ? cost.replace(',', '.') : cost;
-                            console.log('ProductNumber:', productNumber, 'ProductName:', productName, 'Cost:', cost, 'NormalizedCost:', normalizedCost);
-                            console.log(`Debug Import: productNumber='${productNumber}', productName='${productName}', cost='${cost}', normalizedCost='${normalizedCost}', parseFloat(normalizedCost)=${parseFloat(normalizedCost)}, isNaN=${isNaN(parseFloat(normalizedCost))}`);
-                            if (productNumber && productName && cost !== undefined && cost !== '' && !isNaN(parseFloat(normalizedCost))) {
-                                products[productNumber] = {
-                                    name: productName,
-                                    cost: parseFloat(normalizedCost)
-                                };
-                                imported++;
-                                console.log('Importiert Produkt:', productNumber, productName, parseFloat(normalizedCost));
-                            } else {
-                                console.log(`Zeile ${index + 1} übersprungen - ProductNumber: '${productNumber}', ProductName: '${productName}', Cost: '${cost}', normalizedCost: '${normalizedCost}', isNaN: ${isNaN(parseFloat(normalizedCost))}`);
-                            }
+                            
+                            rawData.push({
+                                lineNumber,
+                                productNumber,
+                                productName,
+                                cost: normalizedCost,
+                                originalLine: dataLine
+                            });
+                        };
+                        
+                        // Spezielle Behandlung für Windows-Zeilenendings in den Daten selbst
+                        if (line.includes('\r')) {
+                            const subLines = line.split('\r').filter(l => l.trim());
+                            subLines.forEach((subLine, subIndex) => {
+                                processLine(subLine.trim(), `${index + 1}.${subIndex + 1}`);
+                            });
+                        } else {
+                            processLine(line, index + 1);
                         }
+                    }
+                });
+                
+                // Duplikate prüfen
+                const duplicates = checkForDuplicates(rawData, 'productNumber');
+                
+                // Validiere und importiere Daten
+                rawData.forEach((item) => {
+                    const validation = validateProductData(item.productNumber, item.productName, item.cost);
+                    
+                    // Sammle Fehler und Warnungen mit Zeilennummer
+                    validation.errors.forEach(error => {
+                        allErrors.push(`Zeile ${item.lineNumber}: ${error}`);
+                    });
+                    validation.warnings.forEach(warning => {
+                        allWarnings.push(`Zeile ${item.lineNumber}: ${warning}`);
+                    });
+                    
+                    // Importiere nur wenn keine Fehler
+                    if (validation.errors.length === 0) {
+                        // Prüfe auf bereits existierende Produktnummer
+                        const isDuplicate = duplicates.some(dup => dup.key === item.productNumber);
+                        
+                        if (products[item.productNumber] && !isDuplicate) {
+                            allWarnings.push(`Zeile ${item.lineNumber}: Produkt "${item.productNumber}" wird überschrieben`);
+                        }
+                        
+                        products[item.productNumber] = {
+                            name: item.productName,
+                            cost: parseFloat(item.cost) || 0
+                        };
+                        imported++;
                     }
                 });
                 
                 saveData();
                 updateProductSelects();
                 renderTables();
-                showAlert(`${imported} Produkte importiert!`, 'success');
+                showValidationSummary(imported, allErrors, allWarnings, duplicates, file.name);
             });
         }
 
@@ -830,56 +1751,84 @@
             }
             
             readCSVFile(file, function(csv) {
-                const lines = csv.split(/\r?\n/);
+                const lines = csv.split(/\r?\n/).filter(line => line.trim());
+                const rawData = [];
+                const allErrors = [];
+                const allWarnings = [];
                 let imported = 0;
                 
+                // Parse und sammle alle Daten
                 lines.forEach((line, index) => {
                     line = line.trim();
-                    console.log(`Zeile ${index + 1}:`, line);
-                    if (line) { // Leere Zeilen überspringen
-                        // Spezielle Behandlung für Windows-Zeilenendings in den Daten selbst
+                    if (line) {
+                        const processLine = (dataLine, lineNumber) => {
+                            const parts = dataLine.split(';').map(s => s.trim());
+                            const [mainProduct, component, quantity] = parts;
+                            
+                            rawData.push({
+                                lineNumber,
+                                mainProduct,
+                                component,
+                                quantity,
+                                originalLine: dataLine
+                            });
+                        };
+                        
+                        // Spezielle Behandlung für Windows-Zeilenendings
                         if (line.includes('\r')) {
-                            // Zeile enthält mehrere Datensätze, diese aufteilen
                             const subLines = line.split('\r').filter(l => l.trim());
-                            console.log('SubLines gefunden:', subLines);
                             subLines.forEach((subLine, subIndex) => {
-                                subLine = subLine.trim();
-                                if (subLine) {
-                                    const parts = subLine.split(';').map(s => s.trim());
-                                    console.log(`SubLine ${index + 1}.${subIndex + 1} Parts:`, parts);
-                                    const [mainProduct, component, quantity] = parts;
-                                    if (mainProduct && component && quantity && !isNaN(parseInt(quantity))) {
-                                        if (!boms[mainProduct]) {
-                                            boms[mainProduct] = {};
-                                        }
-                                        boms[mainProduct][component] = parseInt(quantity);
-                                        imported++;
-                                        console.log('Importiert BOM:', mainProduct, component, parseInt(quantity));
-                                    }
-                                }
+                                processLine(subLine.trim(), `${index + 1}.${subIndex + 1}`);
                             });
                         } else {
-                            const parts = line.split(';').map(s => s.trim());
-                            console.log('Parts:', parts);
-                            const [mainProduct, component, quantity] = parts;
-                            console.log('MainProduct:', mainProduct, 'Component:', component, 'Quantity:', quantity);
-                            if (mainProduct && component && quantity && !isNaN(parseInt(quantity))) {
-                                if (!boms[mainProduct]) {
-                                    boms[mainProduct] = {};
-                                }
-                                boms[mainProduct][component] = parseInt(quantity);
-                                imported++;
-                                console.log('Importiert BOM:', mainProduct, component, parseInt(quantity));
-                            } else {
-                                console.log(`Zeile ${index + 1} übersprungen - MainProduct: '${mainProduct}', Component: '${component}', Quantity: '${quantity}', isNaN: ${isNaN(parseInt(quantity))}`);
-                            }
+                            processLine(line, index + 1);
                         }
+                    }
+                });
+                
+                // Duplikate prüfen (Kombinationsschlüssel mainProduct + component)
+                const bomKeys = rawData.map(item => `${item.mainProduct}->${item.component}`);
+                const duplicates = [];
+                const seen = new Set();
+                bomKeys.forEach((key, index) => {
+                    if (key && key !== 'undefined->undefined' && seen.has(key)) {
+                        duplicates.push({ key, line: rawData[index].lineNumber });
+                    } else if (key && key !== 'undefined->undefined') {
+                        seen.add(key);
+                    }
+                });
+                
+                // Validiere und importiere Daten
+                rawData.forEach((item) => {
+                    const validation = validateBOMData(item.mainProduct, item.component, item.quantity);
+                    
+                    // Sammle Fehler und Warnungen mit Zeilennummer
+                    validation.errors.forEach(error => {
+                        allErrors.push(`Zeile ${item.lineNumber}: ${error}`);
+                    });
+                    validation.warnings.forEach(warning => {
+                        allWarnings.push(`Zeile ${item.lineNumber}: ${warning}`);
+                    });
+                    
+                    // Importiere nur wenn keine Fehler
+                    if (validation.errors.length === 0) {
+                        if (!boms[item.mainProduct]) {
+                            boms[item.mainProduct] = {};
+                        }
+                        
+                        // Prüfe auf Überschreibung
+                        if (boms[item.mainProduct][item.component]) {
+                            allWarnings.push(`Zeile ${item.lineNumber}: Komponente "${item.component}" in "${item.mainProduct}" wird überschrieben (alt: ${boms[item.mainProduct][item.component]}, neu: ${item.quantity})`);
+                        }
+                        
+                        boms[item.mainProduct][item.component] = parseInt(item.quantity);
+                        imported++;
                     }
                 });
                 
                 saveData();
                 renderBoms();
-                showAlert(`${imported} Stücklisteneinträge importiert!`, 'success');
+                showValidationSummary(imported, allErrors, allWarnings, duplicates, file.name);
             });
         }
 
@@ -891,52 +1840,71 @@
             }
             
             readCSVFile(file, function(csv) {
-                console.log('CSV Inhalt:', csv);
-                const lines = csv.split(/\r?\n/);
-                console.log('Anzahl Zeilen:', lines.length);
+                const lines = csv.split(/\r?\n/).filter(line => line.trim());
+                const rawData = [];
+                const allErrors = [];
+                const allWarnings = [];
                 let imported = 0;
                 
+                // Parse und sammle alle Daten
                 lines.forEach((line, index) => {
                     line = line.trim();
-                    console.log(`Zeile ${index + 1}:`, line);
-                    if (line) { // Leere Zeilen überspringen
-                        // Spezielle Behandlung für Windows-Zeilenendings in den Daten selbst
+                    if (line) {
+                        const processLine = (dataLine, lineNumber) => {
+                            const parts = dataLine.split(';').map(s => s.trim());
+                            const [productNumber, quantity] = parts;
+                            
+                            rawData.push({
+                                lineNumber,
+                                productNumber,
+                                quantity,
+                                originalLine: dataLine
+                            });
+                        };
+                        
+                        // Spezielle Behandlung für Windows-Zeilenendings
                         if (line.includes('\r')) {
-                            // Zeile enthält mehrere Datensätze, diese aufteilen
                             const subLines = line.split('\r').filter(l => l.trim());
-                            console.log('SubLines gefunden:', subLines);
                             subLines.forEach((subLine, subIndex) => {
-                                subLine = subLine.trim();
-                                if (subLine) {
-                                    const parts = subLine.split(';').map(s => s.trim());
-                                    console.log(`SubLine ${index + 1}.${subIndex + 1} Parts:`, parts);
-                                    const [productNumber, quantity] = parts;
-                                    if (productNumber && quantity !== '' && quantity !== undefined && !isNaN(parseInt(quantity))) {
-                                        inventory[productNumber] = parseInt(quantity);
-                                        imported++;
-                                        console.log('Importiert:', productNumber, parseInt(quantity));
-                                    }
-                                }
+                                processLine(subLine.trim(), `${index + 1}.${subIndex + 1}`);
                             });
                         } else {
-                            const parts = line.split(';').map(s => s.trim());
-                            console.log('Parts:', parts);
-                            const [productNumber, quantity] = parts;
-                            console.log('ProductNumber:', productNumber, 'Quantity:', quantity);
-                            if (productNumber && quantity !== '' && quantity !== undefined && !isNaN(parseInt(quantity))) {
-                                inventory[productNumber] = parseInt(quantity);
-                                imported++;
-                                console.log('Importiert:', productNumber, parseInt(quantity));
-                            } else {
-                                console.log(`Zeile ${index + 1} übersprungen - ProductNumber: '${productNumber}', Quantity: '${quantity}', isNaN: ${isNaN(parseInt(quantity))}`);
-                            }
+                            processLine(line, index + 1);
                         }
+                    }
+                });
+                
+                // Duplikate prüfen
+                const duplicates = checkForDuplicates(rawData, 'productNumber');
+                
+                // Validiere und importiere Daten
+                rawData.forEach((item) => {
+                    const validation = validateInventoryData(item.productNumber, item.quantity);
+                    
+                    // Sammle Fehler und Warnungen mit Zeilennummer
+                    validation.errors.forEach(error => {
+                        allErrors.push(`Zeile ${item.lineNumber}: ${error}`);
+                    });
+                    validation.warnings.forEach(warning => {
+                        allWarnings.push(`Zeile ${item.lineNumber}: ${warning}`);
+                    });
+                    
+                    // Importiere nur wenn keine Fehler
+                    if (validation.errors.length === 0) {
+                        // Prüfe auf Überschreibung
+                        const isDuplicate = duplicates.some(dup => dup.key === item.productNumber);
+                        if (inventory[item.productNumber] !== undefined && !isDuplicate) {
+                            allWarnings.push(`Zeile ${item.lineNumber}: Lagerbestand für "${item.productNumber}" wird überschrieben (alt: ${inventory[item.productNumber]}, neu: ${item.quantity || 0})`);
+                        }
+                        
+                        inventory[item.productNumber] = parseInt(item.quantity) || 0;
+                        imported++;
                     }
                 });
                 
                 saveData();
                 renderTables();
-                showAlert(`${imported} von ${lines.filter(l => l.trim()).length} Lagerstand-Einträge importiert!`, 'success');
+                showValidationSummary(imported, allErrors, allWarnings, duplicates, file.name);
             });
         }
 
@@ -948,52 +1916,71 @@
             }
             
             readCSVFile(file, function(csv) {
-                console.log('CSV Inhalt:', csv);
-                const lines = csv.split(/\r?\n/);
-                console.log('Anzahl Zeilen:', lines.length);
+                const lines = csv.split(/\r?\n/).filter(line => line.trim());
+                const rawData = [];
+                const allErrors = [];
+                const allWarnings = [];
                 let imported = 0;
                 
+                // Parse und sammle alle Daten
                 lines.forEach((line, index) => {
                     line = line.trim();
-                    console.log(`Zeile ${index + 1}:`, line);
-                    if (line) { // Leere Zeilen überspringen
-                        // Spezielle Behandlung für Windows-Zeilenendings in den Daten selbst
+                    if (line) {
+                        const processLine = (dataLine, lineNumber) => {
+                            const parts = dataLine.split(';').map(s => s.trim());
+                            const [productNumber, quantity] = parts;
+                            
+                            rawData.push({
+                                lineNumber,
+                                productNumber,
+                                quantity,
+                                originalLine: dataLine
+                            });
+                        };
+                        
+                        // Spezielle Behandlung für Windows-Zeilenendings
                         if (line.includes('\r')) {
-                            // Zeile enthält mehrere Datensätze, diese aufteilen
                             const subLines = line.split('\r').filter(l => l.trim());
-                            console.log('SubLines gefunden:', subLines);
                             subLines.forEach((subLine, subIndex) => {
-                                subLine = subLine.trim();
-                                if (subLine) {
-                                    const parts = subLine.split(';').map(s => s.trim());
-                                    console.log(`SubLine ${index + 1}.${subIndex + 1} Parts:`, parts);
-                                    const [productNumber, quantity] = parts;
-                                    if (productNumber && quantity !== '' && quantity !== undefined && !isNaN(parseInt(quantity))) {
-                                        demand[productNumber] = (demand[productNumber] || 0) + parseInt(quantity);
-                                        imported++;
-                                        console.log('Importiert Bedarf:', productNumber, parseInt(quantity));
-                                    }
-                                }
+                                processLine(subLine.trim(), `${index + 1}.${subIndex + 1}`);
                             });
                         } else {
-                            const parts = line.split(';').map(s => s.trim());
-                            console.log('Parts:', parts);
-                            const [productNumber, quantity] = parts;
-                            console.log('ProductNumber:', productNumber, 'Quantity:', quantity);
-                            if (productNumber && quantity !== '' && quantity !== undefined && !isNaN(parseInt(quantity))) {
-                                demand[productNumber] = (demand[productNumber] || 0) + parseInt(quantity);
-                                imported++;
-                                console.log('Importiert Bedarf:', productNumber, parseInt(quantity));
-                            } else {
-                                console.log(`Zeile ${index + 1} übersprungen - ProductNumber: '${productNumber}', Quantity: '${quantity}', isNaN: ${isNaN(parseInt(quantity))}`);
-                            }
+                            processLine(line, index + 1);
+                        }
+                    }
+                });
+                
+                // Duplikate sammeln (aber nicht als Fehler, da Bedarfe summiert werden)
+                const duplicates = checkForDuplicates(rawData, 'productNumber');
+                if (duplicates.length > 0) {
+                    allWarnings.push(`Mehrfache Bedarfseinträge werden summiert: ${duplicates.map(d => d.key).join(', ')}`);
+                }
+                
+                // Validiere und importiere Daten
+                rawData.forEach((item) => {
+                    const validation = validateInventoryData(item.productNumber, item.quantity); // Gleiche Validierung wie Inventory
+                    
+                    // Sammle Fehler und Warnungen mit Zeilennummer
+                    validation.errors.forEach(error => {
+                        allErrors.push(`Zeile ${item.lineNumber}: ${error}`);
+                    });
+                    validation.warnings.forEach(warning => {
+                        allWarnings.push(`Zeile ${item.lineNumber}: ${warning}`);
+                    });
+                    
+                    // Importiere nur wenn keine Fehler (addiere zum bestehenden Bedarf)
+                    if (validation.errors.length === 0) {
+                        const quantityToAdd = parseInt(item.quantity) || 0;
+                        if (quantityToAdd > 0) {
+                            demand[item.productNumber] = (demand[item.productNumber] || 0) + quantityToAdd;
+                            imported++;
                         }
                     }
                 });
                 
                 saveData();
                 renderTables();
-                showAlert(`${imported} von ${lines.filter(l => l.trim()).length} Bedarfs-Einträge importiert!`, 'success');
+                showValidationSummary(imported, allErrors, allWarnings, [], file.name); // Keine Duplikate als Fehler
             });
         }
 
@@ -1422,7 +2409,7 @@
             // Filter-Logik
             let itemsToShow = {};
             
-            if (filterType === 'nocost') {
+            if (filterType === 'nocost' || filterType.startsWith('nocost-')) {
                 // Alle Artikel ohne Kosten
                 Object.keys(requirements).forEach(key => {
                     if (!products[key] || (products[key].cost || 0) === 0) {
@@ -1444,14 +2431,9 @@
                 
                 html += '<h4 style="color: #f39c12; margin-top: 20px;">⚠️ Artikel ohne Kostensätze:</h4>';
                 
-                // Standard für nocost ist 'nocost-all' wenn nicht anders angegeben
-                if (currentFilter === 'nocost') {
-                    currentFilter = 'nocost-all';
-                }
-                
                 // Zusätzliche Sub-Filter für "Ohne Kosten"
                 html += `<div style="margin-bottom: 15px; text-align: center;">
-                    <button onclick="filterRequirements('nocost-all')" class="${currentFilter === 'nocost-all' ? 'success' : ''}" 
+                    <button onclick="filterRequirements('nocost-all')" class="${currentFilter === 'nocost-all' || currentFilter === 'nocost' ? 'success' : ''}" 
                             style="margin-right: 10px; font-size: 12px; padding: 5px 10px;">🔍 Alle (${Object.keys(itemsToShow).length})</button>
                     <button onclick="filterRequirements('nocost-purchase')" class="${currentFilter === 'nocost-purchase' ? 'success' : ''}" 
                             style="margin-right: 10px; font-size: 12px; padding: 5px 10px;">🛒 Nur Einkauf (${Object.keys(noCostPurchase).length})</button>
@@ -1459,12 +2441,15 @@
                             style="font-size: 12px; padding: 5px 10px;">🏭 Nur Fertigung (${Object.keys(noCostManufacture).length})</button>
                 </div>`;
                 
-                // Bestimme welche Items angezeigt werden sollen
-                let displayItems = itemsToShow;
+                // Bestimme welche Items angezeigt werden sollen basierend auf dem aktuellen Filter
+                let displayItems = itemsToShow; // Standard: alle ohne Kosten
+                
                 if (currentFilter === 'nocost-purchase') {
                     displayItems = noCostPurchase;
                 } else if (currentFilter === 'nocost-manufacture') {
                     displayItems = noCostManufacture;
+                } else if (currentFilter === 'nocost' || currentFilter === 'nocost-all') {
+                    displayItems = itemsToShow; // Alle ohne Kosten
                 }
                 
                 html += '<table style="margin-bottom: 20px;"><thead><tr><th>Typ</th><th>Ebene</th><th>Produktnummer</th><th>Artikelname</th><th>Benötigt</th><th>Verfügbar</th><th>Zu beschaffen</th><th>Kosten (€)</th><th>Aktionen</th></tr></thead><tbody>';
@@ -1492,11 +2477,6 @@
                 });
                 
                 html += '</tbody></table>';
-                
-            } else if (filterType.startsWith('nocost-')) {
-                // Rekursiver Aufruf für Sub-Filter
-                filterRequirements('nocost');
-                return;
             } else if (filterType === 'all' || filterType === 'purchase') {
                 // Einkaufsteile anzeigen
                 if (Object.keys(purchaseRequirements).length > 0) {
@@ -2054,8 +3034,274 @@
             }
         }
 
-        // Alert-System
-        function showAlert(message, type) {
+        // Kritische Situationen überprüfen
+        function checkCriticalSituations() {
+            const warnings = [];
+            
+            // 1. Produkte ohne Kosten
+            const productsWithoutCost = Object.keys(products).filter(key => 
+                !products[key].cost || products[key].cost === 0);
+            if (productsWithoutCost.length > 0) {
+                warnings.push({
+                    type: 'warning',
+                    title: 'Produkte ohne Kosten',
+                    message: `${productsWithoutCost.length} Produkte haben keine Kosten definiert`,
+                    details: productsWithoutCost.slice(0, 5).join(', ') + (productsWithoutCost.length > 5 ? '...' : '')
+                });
+            }
+            
+            // 2. Stücklisten mit fehlenden Komponenten
+            const missingComponents = [];
+            Object.keys(boms).forEach(bomKey => {
+                Object.keys(boms[bomKey]).forEach(component => {
+                    if (!products[component]) {
+                        missingComponents.push(`${bomKey} → ${component}`);
+                    }
+                });
+            });
+            if (missingComponents.length > 0) {
+                warnings.push({
+                    type: 'error',
+                    title: 'Fehlende Komponenten',
+                    message: `${missingComponents.length} Stücklisten-Komponenten existieren nicht als Produkte`,
+                    details: missingComponents.slice(0, 3).join(', ') + (missingComponents.length > 3 ? '...' : '')
+                });
+            }
+            
+            // 3. Bedarf für nicht existierende Produkte
+            const missingDemandProducts = Object.keys(demand).filter(key => !products[key]);
+            if (missingDemandProducts.length > 0) {
+                warnings.push({
+                    type: 'warning',
+                    title: 'Bedarf für unbekannte Produkte',
+                    message: `Bedarf für ${missingDemandProducts.length} nicht existierende Produkte`,
+                    details: missingDemandProducts.join(', ')
+                });
+            }
+            
+            // 4. Lagerbestand für nicht existierende Produkte
+            const missingInventoryProducts = Object.keys(inventory).filter(key => !products[key]);
+            if (missingInventoryProducts.length > 0) {
+                warnings.push({
+                    type: 'warning',
+                    title: 'Lagerbestand für unbekannte Produkte',
+                    message: `Lagerbestand für ${missingInventoryProducts.length} nicht existierende Produkte`,
+                    details: missingInventoryProducts.join(', ')
+                });
+            }
+            
+            // 5. Sehr teure Produkte (über 50.000€)
+            const expensiveProducts = Object.keys(products).filter(key => 
+                products[key].cost && products[key].cost > 50000);
+            if (expensiveProducts.length > 0) {
+                warnings.push({
+                    type: 'info',
+                    title: 'Sehr teure Produkte',
+                    message: `${expensiveProducts.length} Produkte kosten über 50.000€`,
+                    details: expensiveProducts.map(key => `${key}: ${products[key].cost.toFixed(2)}€`).slice(0, 3).join(', ')
+                });
+            }
+            
+            // 6. Sehr hohe Lagerbestände (über 10.000 Stück)
+            const highInventory = Object.keys(inventory).filter(key => 
+                inventory[key] > 10000);
+            if (highInventory.length > 0) {
+                warnings.push({
+                    type: 'info',
+                    title: 'Sehr hohe Lagerbestände',
+                    message: `${highInventory.length} Artikel haben über 10.000 Stück im Lager`,
+                    details: highInventory.map(key => `${key}: ${inventory[key]} Stück`).slice(0, 3).join(', ')
+                });
+            }
+            
+            // 7. Zirkuläre Referenzen in Stücklisten
+            const circularRefs = detectCircularReferences();
+            if (circularRefs.length > 0) {
+                warnings.push({
+                    type: 'error',
+                    title: 'Zirkuläre Referenzen',
+                    message: `${circularRefs.length} zirkuläre Referenzen in Stücklisten erkannt`,
+                    details: circularRefs.slice(0, 2).join(', ')
+                });
+            }
+            
+            return warnings;
+        }
+
+        function detectCircularReferences() {
+            const circularRefs = [];
+            
+            function hasCircularReference(productNumber, path = []) {
+                if (path.includes(productNumber)) {
+                    const cycle = [...path, productNumber];
+                    const cycleStart = cycle.indexOf(productNumber);
+                    const actualCycle = cycle.slice(cycleStart);
+                    circularRefs.push(actualCycle.join(' → '));
+                    return true;
+                }
+                
+                if (boms[productNumber]) {
+                    const newPath = [...path, productNumber];
+                    Object.keys(boms[productNumber]).forEach(component => {
+                        hasCircularReference(component, newPath);
+                    });
+                }
+                
+                return false;
+            }
+            
+            Object.keys(boms).forEach(productNumber => {
+                hasCircularReference(productNumber);
+            });
+            
+            return [...new Set(circularRefs)]; // Duplikate entfernen
+        }
+
+        function showCriticalSituations() {
+            const warnings = checkCriticalSituations();
+            
+            if (warnings.length === 0) {
+                showAlert('✅ Keine kritischen Situationen erkannt!', 'success', { persistent: false });
+                return;
+            }
+            
+            // Zeige die schwerwiegendsten Warnungen zuerst
+            const errorWarnings = warnings.filter(w => w.type === 'error');
+            const normalWarnings = warnings.filter(w => w.type === 'warning');
+            const infoWarnings = warnings.filter(w => w.type === 'info');
+            
+            let message = `🔍 System-Check: ${warnings.length} Situation(en) erkannt\n\n`;
+            
+            if (errorWarnings.length > 0) {
+                message += '❌ FEHLER:\n';
+                errorWarnings.forEach(warning => {
+                    message += `• ${warning.title}: ${warning.message}\n  ${warning.details}\n`;
+                });
+                message += '\n';
+            }
+            
+            if (normalWarnings.length > 0) {
+                message += '⚠️ WARNUNGEN:\n';
+                normalWarnings.forEach(warning => {
+                    message += `• ${warning.title}: ${warning.message}\n  ${warning.details}\n`;
+                });
+                message += '\n';
+            }
+            
+            if (infoWarnings.length > 0) {
+                message += 'ℹ️ HINWEISE:\n';
+                infoWarnings.forEach(warning => {
+                    message += `• ${warning.title}: ${warning.message}\n  ${warning.details}\n`;
+                });
+            }
+            
+            const alertType = errorWarnings.length > 0 ? 'error' : 
+                            (normalWarnings.length > 0 ? 'warning' : 'info');
+            
+            // Generiere System-Check Korrekturen
+            const systemCorrections = generateSystemCheckCorrections();
+            
+            // Erstelle erweiterte Alert-Daten für System-Check
+            const systemAlertData = {
+                summary: `System-Check: ${warnings.length} Situation(en) erkannt`,
+                errors: errorWarnings.map(w => `${w.title}: ${w.message} - ${w.details}`),
+                warnings: normalWarnings.map(w => `${w.title}: ${w.message} - ${w.details}`),
+                duplicates: [], // System-Check hat keine Duplikate
+                fullMessage: message.trim(),
+                corrections: systemCorrections
+            };
+            
+            // Verwende showExpandableAlert für System-Check mit Korrekturen
+            showExpandableAlert(systemAlertData, alertType, { 
+                title: 'System-Check Ergebnis',
+                persistent: true,
+                exportData: true,
+                systemInfo: true,
+                showCorrections: systemCorrections.length > 0
+            });
+        }
+
+        function generateSystemCheckCorrections() {
+            const corrections = [];
+            
+            // Fehlende Komponenten in Produktliste erstellen
+            const missingComponents = [];
+            Object.keys(boms).forEach(bomKey => {
+                Object.keys(boms[bomKey]).forEach(component => {
+                    if (!products[component] && !missingComponents.includes(component)) {
+                        missingComponents.push(component);
+                    }
+                });
+            });
+            if (missingComponents.length > 0) {
+                corrections.push({
+                    type: 'create_missing_components',
+                    description: `${missingComponents.length} fehlende Stücklisten-Komponenten als Produkte erstellen`,
+                    action: () => applyMissingComponentCorrection(missingComponents),
+                    severity: 'high'
+                });
+            }
+            
+            // Verwaiste Inventar-/Bedarf-Einträge bereinigen
+            const orphanedInventory = Object.keys(inventory).filter(key => !products[key]);
+            const orphanedDemand = Object.keys(demand).filter(key => !products[key]);
+            if (orphanedInventory.length > 0 || orphanedDemand.length > 0) {
+                corrections.push({
+                    type: 'cleanup_orphaned',
+                    description: `${orphanedInventory.length + orphanedDemand.length} verwaiste Einträge bereinigen`,
+                    action: () => applyOrphanedCleanup(orphanedInventory, orphanedDemand),
+                    severity: 'medium'
+                });
+            }
+            
+            // Produkte ohne Kosten auf 0€ setzen
+            const productsWithoutCost = Object.keys(products).filter(key => 
+                !products[key].cost || products[key].cost === 0);
+            if (productsWithoutCost.length > 0) {
+                corrections.push({
+                    type: 'set_zero_costs',
+                    description: `${productsWithoutCost.length} Produkte ohne Kosten auf 0€ setzen`,
+                    action: () => applyZeroCostCorrection(productsWithoutCost),
+                    severity: 'low'
+                });
+            }
+            
+            // Zirkuläre Referenzen bereinigen (Info - keine automatische Korrektur)
+            const circularRefs = detectCircularReferences();
+            if (circularRefs.length > 0) {
+                corrections.push({
+                    type: 'circular_refs_info',
+                    description: `${circularRefs.length} zirkuläre Referenzen gefunden - manuelle Überprüfung erforderlich`,
+                    action: () => 'Zirkuläre Referenzen müssen manuell korrigiert werden',
+                    severity: 'high'
+                });
+            }
+            
+            return corrections;
+        }
+
+        function applyZeroCostCorrection(productsWithoutCost) {
+            let fixed = 0;
+            productsWithoutCost.forEach(productNumber => {
+                if (products[productNumber]) {
+                    products[productNumber].cost = 0;
+                    fixed++;
+                }
+            });
+            
+            if (fixed > 0) {
+                saveData();
+                renderTables();
+                return `${fixed} Produkte mit Kosten 0€ aktualisiert`;
+            }
+            return 'Keine Korrekturen angewendet';
+        }
+
+        // Globale Variable für Alert-Daten
+        let currentAlertData = null;
+
+        // Alert-System mit Export-Funktion
+        function showAlert(message, type, options = {}) {
             const existingAlert = document.querySelector('.alert');
             if (existingAlert) {
                 existingAlert.remove();
@@ -2063,13 +3309,150 @@
             
             const alert = document.createElement('div');
             alert.className = `alert ${type}`;
-            alert.textContent = message;
+            
+            // Bestimme ob das Alert persistent sein soll
+            const isPersistent = options.persistent !== false && (type === 'warning' || type === 'error' || message.length > 100);
+            const hasExportableData = options.exportData || (message.includes('\n') && message.length > 50);
+            
+            // Alert-Header mit Titel und Aktions-Buttons
+            if (isPersistent || hasExportableData) {
+                const alertHeader = document.createElement('div');
+                alertHeader.className = 'alert-header';
+                
+                const titleElement = document.createElement('div');
+                titleElement.className = 'alert-title';
+                titleElement.textContent = getAlertTitle(type, options.title);
+                
+                const actionsDiv = document.createElement('div');
+                actionsDiv.className = 'alert-actions';
+                
+                // Export-Button (wenn exportierbare Daten vorhanden)
+                if (hasExportableData) {
+                    const exportBtn = document.createElement('button');
+                    exportBtn.className = 'alert-btn';
+                    exportBtn.innerHTML = '📊 Export';
+                    exportBtn.title = 'Warnungen als Textdatei exportieren';
+                    exportBtn.onclick = () => exportAlertData(message, type, options);
+                    actionsDiv.appendChild(exportBtn);
+                }
+                
+                // Schließen-Button (für persistente Alerts)
+                if (isPersistent) {
+                    const closeBtn = document.createElement('button');
+                    closeBtn.className = 'alert-btn';
+                    closeBtn.innerHTML = '✕ Schließen';
+                    closeBtn.title = 'Warnung schließen';
+                    closeBtn.onclick = () => alert.remove();
+                    actionsDiv.appendChild(closeBtn);
+                }
+                
+                alertHeader.appendChild(titleElement);
+                alertHeader.appendChild(actionsDiv);
+                alert.appendChild(alertHeader);
+            }
+            
+            // Alert-Content
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'alert-content';
+            
+            // Mehrzeilige Nachrichten unterstützen
+            if (message.includes('\n')) {
+                contentDiv.style.whiteSpace = 'pre-line';
+                contentDiv.style.textAlign = 'left';
+                contentDiv.style.maxHeight = isPersistent ? '400px' : '300px';
+                contentDiv.style.overflowY = 'auto';
+            }
+            
+            contentDiv.textContent = message;
+            alert.appendChild(contentDiv);
+            
+            // Alert-Daten für Export speichern
+            currentAlertData = {
+                message,
+                type,
+                timestamp: new Date().toLocaleString('de-DE'),
+                options
+            };
             
             document.querySelector('.container').insertBefore(alert, document.querySelector('.tabs'));
             
-            setTimeout(() => {
-                alert.remove();
-            }, 5000);
+            // Auto-Remove nur für nicht-persistente Alerts
+            if (!isPersistent) {
+                const displayTime = message.length > 100 ? 8000 : 5000;
+                setTimeout(() => {
+                    if (alert.parentNode) {
+                        alert.remove();
+                    }
+                }, displayTime);
+            }
+        }
+
+        function getAlertTitle(type, customTitle) {
+            if (customTitle) return customTitle;
+            
+            const titles = {
+                'success': '✅ Erfolgreich',
+                'error': '❌ Fehler',
+                'warning': '⚠️ Warnung',
+                'info': 'ℹ️ Information'
+            };
+            
+            return titles[type] || 'Benachrichtigung';
+        }
+
+        function exportAlertData(message, type, options) {
+            try {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const filename = `Materialplanung_${type}_${timestamp}.txt`;
+                
+                let exportContent = `MATERIALPLANUNG - ${getAlertTitle(type, options.title).toUpperCase()}\n`;
+                exportContent += `Zeitpunkt: ${new Date().toLocaleString('de-DE')}\n`;
+                exportContent += `Typ: ${type.toUpperCase()}\n`;
+                exportContent += `\n${'='.repeat(50)}\n\n`;
+                exportContent += message;
+                exportContent += `\n\n${'='.repeat(50)}\n`;
+                exportContent += `Export erstellt mit Materialplanung System\n`;
+                
+                // Zusätzliche System-Informationen anhängen
+                if (options.systemInfo) {
+                    exportContent += `\nSystem-Status:\n`;
+                    exportContent += `- Produkte: ${Object.keys(products).length}\n`;
+                    exportContent += `- Stücklisten: ${Object.keys(boms).length}\n`;
+                    exportContent += `- Lagerbestände: ${Object.keys(inventory).length}\n`;
+                    exportContent += `- Bedarfe: ${Object.keys(demand).length}\n`;
+                }
+                
+                const blob = new Blob([exportContent], { type: 'text/plain;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = filename;
+                link.click();
+                
+                URL.revokeObjectURL(link.href);
+                
+                // Kurze Bestätigung (nicht persistent)
+                setTimeout(() => {
+                    const confirmAlert = document.createElement('div');
+                    confirmAlert.className = 'alert success';
+                    confirmAlert.style.position = 'fixed';
+                    confirmAlert.style.top = '20px';
+                    confirmAlert.style.right = '20px';
+                    confirmAlert.style.zIndex = '10000';
+                    confirmAlert.style.maxWidth = '300px';
+                    confirmAlert.textContent = `📁 Export gespeichert: ${filename}`;
+                    document.body.appendChild(confirmAlert);
+                    
+                    setTimeout(() => {
+                        if (confirmAlert.parentNode) {
+                            confirmAlert.remove();
+                        }
+                    }, 3000);
+                }, 100);
+                
+            } catch (error) {
+                console.error('Export-Fehler:', error);
+                alert('Fehler beim Export der Daten. Bitte versuchen Sie es erneut.');
+            }
         }
     </script>
 </body>
