@@ -38,6 +38,106 @@
         .action-buttons {
             gap: 5px;
         }
+        
+        /* Stammbaum-Styles */
+        .family-tree {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .tree-level {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 20px 0;
+            flex-wrap: wrap;
+            gap: 20px;
+        }
+        
+        .tree-node {
+            background: white;
+            border: 2px solid #28a745;
+            border-radius: 8px;
+            padding: 10px;
+            text-align: center;
+            min-width: 120px;
+            position: relative;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tree-node:hover {
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            transform: translateY(-2px);
+        }
+        
+        .tree-node.selected {
+            border-color: #007bff;
+            background-color: #e7f3ff;
+        }
+        
+        .tree-node.female {
+            border-color: #e91e63;
+            background-color: #fce4ec;
+        }
+        
+        .tree-node.male {
+            border-color: #2196f3;
+            background-color: #e3f2fd;
+        }
+        
+        .tree-node.deleted {
+            opacity: 0.6;
+            border-style: dashed;
+        }
+        
+        .tree-node-name {
+            font-weight: bold;
+            font-size: 0.9rem;
+            margin-bottom: 2px;
+        }
+        
+        .tree-node-info {
+            font-size: 0.7rem;
+            color: #666;
+        }
+        
+        .tree-connector {
+            position: relative;
+            width: 100%;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .tree-connector::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background-color: #ccc;
+            z-index: -1;
+        }
+        
+        .tree-controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .tree-info {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
     </style>
 </head>
 <body>
@@ -81,6 +181,9 @@
             </li>
             <li class="nav-item">
                 <a class="nav-link" data-bs-toggle="tab" href="#statistics" onclick="updateStatistics()">Statistiken</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" data-bs-toggle="tab" href="#familyTree" onclick="generateFamilyTree()">Stammbaum</a>
             </li>
         </ul>
 
@@ -424,7 +527,7 @@
 
                 <div class="row">
                     <!-- Löschungsstatistiken -->
-                    <div class="col-md-12 mb-4">
+                    <div class="col-md-6 mb-4">
                         <div class="card">
                             <div class="card-header">
                                 <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Löschungsstatistiken</h5>
@@ -435,6 +538,90 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                    
+                    <!-- Lammverluste -->
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0"><i class="fas fa-heart-broken"></i> Lammverluste nach Mutterschaf</h5>
+                            </div>
+                            <div class="card-body" id="lambLossStats">
+                                <!-- Wird dynamisch gefüllt -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Stammbaum Tab -->
+            <div class="tab-pane fade" id="familyTree">
+                <div class="tree-info">
+                    <h5><i class="fas fa-sitemap"></i> Familienstammbaum</h5>
+                    <p class="mb-0">Hier können Sie die Familienbeziehungen zwischen Ihren Schafen visualisieren. Wählen Sie ein Schaf aus, um dessen Stammbaum anzuzeigen.</p>
+                </div>
+                
+                <div class="tree-controls">
+                    <div class="btn-group" role="group">
+                        <button type="button" class="btn btn-outline-primary active" id="treeViewMode" onclick="setTreeViewMode('ancestors')">
+                            <i class="fas fa-arrow-up"></i> Vorfahren
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setTreeViewMode('descendants')">
+                            <i class="fas fa-arrow-down"></i> Nachkommen
+                        </button>
+                        <button type="button" class="btn btn-outline-primary" onclick="setTreeViewMode('full')">
+                            <i class="fas fa-sitemap"></i> Vollständig
+                        </button>
+                    </div>
+                    
+                    <select class="form-select" id="treeSheepSelect" style="max-width: 300px;" onchange="generateFamilyTree()">
+                        <option value="">Schaf für Stammbaum auswählen...</option>
+                    </select>
+                    
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="showDeletedInTree" onchange="generateFamilyTree()">
+                        <label class="form-check-label" for="showDeletedInTree">
+                            Gelöschte Schafe anzeigen
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Legende für Stammbaum -->
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <div class="card">
+                            <div class="card-body py-2">
+                                <div class="legend d-flex flex-wrap align-items-center">
+                                    <strong class="me-3">Legende:</strong>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background-color: #fce4ec; border-color: #e91e63;"></div>
+                                        Weiblich
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background-color: #e3f2fd; border-color: #2196f3;"></div>
+                                        Männlich
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background-color: white; border-color: #28a745;"></div>
+                                        Unbekannt
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background-color: #e7f3ff; border-color: #007bff;"></div>
+                                        Ausgewählt
+                                    </div>
+                                    <div class="legend-item">
+                                        <div class="legend-color" style="background-color: white; border: 2px dashed #ccc; opacity: 0.6;"></div>
+                                        Gelöscht
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="familyTreeContainer" class="family-tree">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Wählen Sie ein Schaf aus der Dropdown-Liste aus, um dessen Stammbaum anzuzeigen.
                     </div>
                 </div>
             </div>
@@ -527,6 +714,7 @@
                             <option value="">Grund auswählen...</option>
                             <option value="verkauft">Verkauft</option>
                             <option value="verstorben">Verstorben</option>
+                            <option value="gerissen">Gerissen</option>
                             <option value="geschlachtet">Geschlachtet</option>
                             <option value="verloren">Verloren/Entlaufen</option>
                             <option value="anderer_betrieb">An anderen Betrieb abgegeben</option>
@@ -656,7 +844,7 @@
                     break;
                 case 'needsEarTag':
                     filteredSheep = sheep.filter(s => {
-                        const age = calculateAge(s.birthDate);
+                        const age = calculateAge(s.birthDate, s.deleted ? s.deletedAt : null);
                         return !s.deleted && !s.earTag && age.totalMonths >= 5;
                     });
                     break;
@@ -713,7 +901,7 @@
             }
 
             sortedSheep.forEach(s => {
-                const age = calculateAge(s.birthDate);
+                const age = calculateAge(s.birthDate, s.deleted ? s.deletedAt : null);
                 const motherName = s.motherSheepId ? (sheep.find(m => m.id === s.motherSheepId && !m.deleted)?.name || 'Unbekannt') : 'Keine';
                 const needsEarTag = !s.earTag && age.months >= 5 && !s.deleted;
                 
@@ -870,6 +1058,7 @@
             saveData();
             displaySheep();
             updateMotherSheepDropdowns();
+            updateTreeSheepDropdown();
             checkAlerts();
             
             const modal = bootstrap.Modal.getInstance(document.getElementById('editModal'));
@@ -960,9 +1149,9 @@
         }
 
         // Alter berechnen
-        function calculateAge(birthDate) {
+        function calculateAge(birthDate, endDate = null) {
             const birth = new Date(birthDate);
-            const now = new Date();
+            const now = endDate ? new Date(endDate) : new Date();
             
             // Zeitdifferenz in Millisekunden
             const diffTime = now.getTime() - birth.getTime();
@@ -1042,7 +1231,7 @@
             
             // Nur aktive Schafe für Alerts berücksichtigen
             sheep.filter(s => !s.deleted).forEach(s => {
-                const age = calculateAge(s.birthDate);
+                const age = calculateAge(s.birthDate, s.deleted ? s.deletedAt : null);
                 if (!s.earTag && age.totalMonths >= 5) {
                     const urgency = age.totalMonths >= 12 ? 'DRINGEND' : 'erforderlich';
                     alerts.push({
@@ -1142,6 +1331,7 @@
             loadData();
             displaySheep();
             updateMotherSheepDropdowns();
+            updateTreeSheepDropdown();
             checkAlerts();
         }
 
@@ -1159,6 +1349,10 @@
         let currentStatsMode = 'all'; // 'all' = geboren im Zeitraum, 'active' = aktueller Bestand
         let customDateFrom = null;
         let customDateTo = null;
+
+        // Stammbaum-Variablen
+        let currentTreeViewMode = 'ancestors'; // 'ancestors', 'descendants', 'full'
+        let selectedSheepForTree = null;
 
         // Statistik-Modus setzen
         function setStatsMode(mode) {
@@ -1339,7 +1533,7 @@
             document.getElementById('statDeleted').textContent = statsDeletedSheep.length;
             
             const needEarTags = allStatsSheep.filter(s => {
-                const age = calculateAge(s.birthDate);
+                const age = calculateAge(s.birthDate, s.deleted ? s.deletedAt : null);
                 return !s.deleted && !s.earTag && age.totalMonths >= 5; // Nur nicht-gelöschte brauchen Ohrmarken
             });
             document.getElementById('statNeedEarTags').textContent = needEarTags.length;
@@ -1360,17 +1554,17 @@
             
             // Altersverteilung - basierend auf allen relevanten Schafen
             const lambs = allStatsSheep.filter(s => {
-                const age = calculateAge(s.birthDate);
+                const age = calculateAge(s.birthDate, s.deleted ? s.deletedAt : null);
                 return age.totalMonths < 5;
             }).length;
             
             const young = allStatsSheep.filter(s => {
-                const age = calculateAge(s.birthDate);
+                const age = calculateAge(s.birthDate, s.deleted ? s.deletedAt : null);
                 return age.totalMonths >= 5 && age.totalMonths < 12;
             }).length;
             
             const adults = allStatsSheep.filter(s => {
-                const age = calculateAge(s.birthDate);
+                const age = calculateAge(s.birthDate, s.deleted ? s.deletedAt : null);
                 return age.totalMonths >= 12;
             }).length;
             
@@ -1391,7 +1585,7 @@
                 recentBirthsContainer.innerHTML = `<p class="text-muted">Keine Schafe ${modeText}.</p>`;
             } else {
                 recentBirthsContainer.innerHTML = recentBirths.map(s => {
-                    const age = calculateAge(s.birthDate);
+                    const age = calculateAge(s.birthDate, s.deleted ? s.deletedAt : null);
                     const status = s.deleted ? ' (gelöscht)' : '';
                     return `<div class="mb-1"><strong>#${s.number || 'N/A'} - ${s.name}${status}</strong> - ${formatDate(s.birthDate)} (${age.display})</div>`;
                 }).join('');
@@ -1432,6 +1626,7 @@
                 const reasonLabels = {
                     'verkauft': 'Verkauft',
                     'verstorben': 'Verstorben',
+                    'gerissen': 'Gerissen',
                     'geschlachtet': 'Geschlachtet',
                     'verloren': 'Verloren/Entlaufen',
                     'anderer_betrieb': 'Anderer Betrieb',
@@ -1441,7 +1636,7 @@
                 deletionStatsContainer.innerHTML = Object.entries(deletionReasons).map(([reason, count]) => {
                     const label = reasonLabels[reason] || reason;
                     return `
-                        <div class="col-md-4 mb-2">
+                        <div class="col-md-6 mb-2">
                             <div class="card text-center">
                                 <div class="card-body py-2">
                                     <h5 class="card-title mb-1">${count}</h5>
@@ -1451,6 +1646,341 @@
                         </div>
                     `;
                 }).join('');
+            }
+            
+            // Lammverluste nach Mutterschaf
+            const lambLossStatsContainer = document.getElementById('lambLossStats');
+            
+            // Finde alle verstorbenen Lämmer (≤ 3 Monate alt bei Tod, gelöscht mit Grund "verstorben")
+            const deadLambs = statsDeletedSheep.filter(s => {
+                if (s.deleteReason !== 'verstorben') return false;
+                const ageAtDeath = calculateAge(s.birthDate, s.deletedAt);
+                return ageAtDeath.totalMonths <= 3;
+            });
+            
+            // Gruppiere nach Mutterschaf
+            const motherLossStats = {};
+            deadLambs.forEach(lamb => {
+                if (lamb.motherSheepId) {
+                    const mother = sheep.find(m => m.id === lamb.motherSheepId);
+                    if (mother) {
+                        const motherKey = mother.id;
+                        if (!motherLossStats[motherKey]) {
+                            motherLossStats[motherKey] = {
+                                mother: mother,
+                                deadLambs: [],
+                                totalLambs: 0
+                            };
+                        }
+                        motherLossStats[motherKey].deadLambs.push(lamb);
+                    }
+                }
+            });
+            
+            // Berechne Gesamtzahl der Lämmer pro Mutter
+            Object.keys(motherLossStats).forEach(motherId => {
+                const totalLambs = sheep.filter(s => s.motherSheepId === motherId).length;
+                motherLossStats[motherId].totalLambs = totalLambs;
+            });
+            
+            // Sortiere nach Anzahl verstorbener Lämmer (absteigend)
+            const sortedMothers = Object.values(motherLossStats).sort((a, b) => b.deadLambs.length - a.deadLambs.length);
+            
+            if (sortedMothers.length === 0) {
+                lambLossStatsContainer.innerHTML = '<p class="text-muted">Keine Lammverluste dokumentiert (Lämmer ≤3 Monate, verstorben).</p>';
+            } else {
+                lambLossStatsContainer.innerHTML = `
+                    <div class="mb-3">
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i> 
+                            Zeigt Mutterschafe mit verstorbenen Lämmern (≤3 Monate alt bei Tod)
+                        </small>
+                    </div>
+                    ${sortedMothers.map(stat => {
+                        const lossRate = ((stat.deadLambs.length / stat.totalLambs) * 100).toFixed(1);
+                        const statusClass = stat.mother.deleted ? ' (gelöscht)' : '';
+                        
+                        return `
+                            <div class="mb-3 p-2 border rounded ${stat.deadLambs.length >= 3 ? 'border-danger bg-light' : stat.deadLambs.length >= 2 ? 'border-warning' : 'border-secondary'}">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <strong>#${stat.mother.number || 'N/A'} - ${stat.mother.name}${statusClass}</strong>
+                                    <span class="badge ${stat.deadLambs.length >= 3 ? 'bg-danger' : stat.deadLambs.length >= 2 ? 'bg-warning' : 'bg-secondary'}">
+                                        ${stat.deadLambs.length} von ${stat.totalLambs} Lämmern (${lossRate}%)
+                                    </span>
+                                </div>
+                                <div class="small text-muted">
+                                    <div class="mb-1">
+                                        <i class="fas fa-skull-crossbones"></i> Verstorbene Lämmer: 
+                                        ${stat.deadLambs.map(lamb => {
+                                            const ageAtDeath = calculateAge(lamb.birthDate, lamb.deletedAt);
+                                            return `💀 #${lamb.number || 'N/A'} - ${lamb.name} (${ageAtDeath.display} alt)`;
+                                        }).join(', ')}
+                                    </div>
+                                    <div>
+                                        <i class="fas fa-tag"></i> Ohrmarke: ${stat.mother.earTag || 'Keine'}
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                `;
+            }
+        }
+
+        // Stammbaum-Ansichtsmodus setzen
+        function setTreeViewMode(mode) {
+            currentTreeViewMode = mode;
+            
+            // Button-Status aktualisieren
+            document.querySelectorAll('.tree-controls .btn-group .btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            generateFamilyTree();
+        }
+
+        // Stammbaum-Dropdown aktualisieren
+        function updateTreeSheepDropdown() {
+            const dropdown = document.getElementById('treeSheepSelect');
+            if (!dropdown) return;
+            
+            const currentValue = dropdown.value;
+            dropdown.innerHTML = '<option value="">Schaf für Stammbaum auswählen...</option>';
+            
+            // Nur aktive Schafe für Stammbaum (es sei denn, gelöschte sind aktiviert)
+            const showDeleted = document.getElementById('showDeletedInTree')?.checked || false;
+            const sheepToShow = showDeleted ? sheep : sheep.filter(s => !s.deleted);
+            
+            sheepToShow.forEach(s => {
+                const option = document.createElement('option');
+                option.value = s.id;
+                option.textContent = `#${s.number || 'N/A'} - ${s.name}${s.deleted ? ' (gelöscht)' : ''}`;
+                dropdown.appendChild(option);
+            });
+            
+            dropdown.value = currentValue;
+        }
+
+        // Vorfahren eines Schafs finden
+        function findAncestors(sheepId, generations = 3) {
+            const visited = new Set();
+            const ancestors = [];
+            
+            function findParents(id, generation) {
+                if (generation > generations || visited.has(id)) return;
+                visited.add(id);
+                
+                const currentSheep = sheep.find(s => s.id === id);
+                if (!currentSheep) return;
+                
+                if (currentSheep.motherSheepId) {
+                    const mother = sheep.find(s => s.id === currentSheep.motherSheepId);
+                    if (mother) {
+                        ancestors.push({sheep: mother, generation: generation, relation: 'mother'});
+                        findParents(mother.id, generation + 1);
+                    }
+                }
+            }
+            
+            findParents(sheepId, 1);
+            return ancestors;
+        }
+
+        // Nachkommen eines Schafs finden
+        function findDescendants(sheepId, generations = 3) {
+            const visited = new Set();
+            const descendants = [];
+            
+            function findChildren(id, generation) {
+                if (generation > generations || visited.has(id)) return;
+                visited.add(id);
+                
+                const children = sheep.filter(s => s.motherSheepId === id);
+                children.forEach(child => {
+                    descendants.push({sheep: child, generation: generation, relation: 'child'});
+                    findChildren(child.id, generation + 1);
+                });
+            }
+            
+            findChildren(sheepId, 1);
+            return descendants;
+        }
+
+        // Stammbaum-Knoten erstellen
+        function createTreeNode(s, isSelected = false) {
+            const age = calculateAge(s.birthDate, s.deleted ? s.deletedAt : null);
+            const node = document.createElement('div');
+            
+            let classes = 'tree-node';
+            if (s.gender === 'weiblich') classes += ' female';
+            else if (s.gender === 'männlich') classes += ' male';
+            if (s.deleted) classes += ' deleted';
+            if (isSelected) classes += ' selected';
+            
+            node.className = classes;
+            node.onclick = () => selectSheepForTree(s.id);
+            
+            node.innerHTML = `
+                <div class="tree-node-name">#${s.number || 'N/A'} - ${s.name}</div>
+                <div class="tree-node-info">
+                    ${formatDate(s.birthDate)}<br>
+                    ${age.display}<br>
+                    ${s.earTag || 'Keine Ohrmarke'}
+                </div>
+            `;
+            
+            return node;
+        }
+
+        // Schaf für Stammbaum auswählen
+        function selectSheepForTree(sheepId) {
+            document.getElementById('treeSheepSelect').value = sheepId;
+            generateFamilyTree();
+        }
+
+        // Stammbaum generieren
+        function generateFamilyTree() {
+            const container = document.getElementById('familyTreeContainer');
+            const sheepId = document.getElementById('treeSheepSelect').value;
+            const showDeleted = document.getElementById('showDeletedInTree')?.checked || false;
+            
+            updateTreeSheepDropdown();
+            
+            if (!sheepId) {
+                container.innerHTML = `
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i> Wählen Sie ein Schaf aus der Dropdown-Liste aus, um dessen Stammbaum anzuzeigen.
+                    </div>
+                `;
+                return;
+            }
+            
+            const selectedSheep = sheep.find(s => s.id === sheepId);
+            if (!selectedSheep) {
+                container.innerHTML = `
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> Ausgewähltes Schaf wurde nicht gefunden.
+                    </div>
+                `;
+                return;
+            }
+            
+            // Filter für gelöschte Schafe anwenden
+            const filteredSheep = showDeleted ? sheep : sheep.filter(s => !s.deleted);
+            
+            container.innerHTML = '';
+            
+            if (currentTreeViewMode === 'ancestors' || currentTreeViewMode === 'full') {
+                // Vorfahren anzeigen
+                const ancestors = findAncestors(sheepId, 3);
+                const ancestorsByGeneration = {};
+                
+                ancestors.forEach(a => {
+                    if (showDeleted || !a.sheep.deleted) {
+                        if (!ancestorsByGeneration[a.generation]) {
+                            ancestorsByGeneration[a.generation] = [];
+                        }
+                        ancestorsByGeneration[a.generation].push(a.sheep);
+                    }
+                });
+                
+                // Generationen von höchster zu niedrigster anzeigen
+                const maxGeneration = Math.max(...Object.keys(ancestorsByGeneration).map(Number), 0);
+                for (let gen = maxGeneration; gen >= 1; gen--) {
+                    if (ancestorsByGeneration[gen]) {
+                        const level = document.createElement('div');
+                        level.className = 'tree-level';
+                        level.innerHTML = `<h6 class="w-100 text-center text-muted">Generation -${gen}</h6>`;
+                        
+                        ancestorsByGeneration[gen].forEach(ancestor => {
+                            level.appendChild(createTreeNode(ancestor));
+                        });
+                        
+                        container.appendChild(level);
+                        
+                        if (gen > 1) {
+                            const connector = document.createElement('div');
+                            connector.className = 'tree-connector';
+                            container.appendChild(connector);
+                        }
+                    }
+                }
+                
+                if (maxGeneration > 0) {
+                    const connector = document.createElement('div');
+                    connector.className = 'tree-connector';
+                    container.appendChild(connector);
+                }
+            }
+            
+            // Ausgewähltes Schaf anzeigen
+            const centerLevel = document.createElement('div');
+            centerLevel.className = 'tree-level';
+            centerLevel.innerHTML = `<h6 class="w-100 text-center text-primary">Ausgewähltes Schaf</h6>`;
+            centerLevel.appendChild(createTreeNode(selectedSheep, true));
+            container.appendChild(centerLevel);
+            
+            if (currentTreeViewMode === 'descendants' || currentTreeViewMode === 'full') {
+                // Nachkommen anzeigen
+                const descendants = findDescendants(sheepId, 3);
+                const descendantsByGeneration = {};
+                
+                descendants.forEach(d => {
+                    if (showDeleted || !d.sheep.deleted) {
+                        if (!descendantsByGeneration[d.generation]) {
+                            descendantsByGeneration[d.generation] = [];
+                        }
+                        descendantsByGeneration[d.generation].push(d.sheep);
+                    }
+                });
+                
+                // Generationen von niedrigster zu höchster anzeigen
+                const maxGeneration = Math.max(...Object.keys(descendantsByGeneration).map(Number), 0);
+                for (let gen = 1; gen <= maxGeneration; gen++) {
+                    if (descendantsByGeneration[gen]) {
+                        const connector = document.createElement('div');
+                        connector.className = 'tree-connector';
+                        container.appendChild(connector);
+                        
+                        const level = document.createElement('div');
+                        level.className = 'tree-level';
+                        level.innerHTML = `<h6 class="w-100 text-center text-muted">Generation +${gen}</h6>`;
+                        
+                        descendantsByGeneration[gen].forEach(descendant => {
+                            level.appendChild(createTreeNode(descendant));
+                        });
+                        
+                        container.appendChild(level);
+                    }
+                }
+            }
+            
+            // Statistiken anzeigen
+            if (currentTreeViewMode === 'full') {
+                const ancestors = findAncestors(sheepId, 10);
+                const descendants = findDescendants(sheepId, 10);
+                const totalFamily = ancestors.length + descendants.length + 1;
+                
+                const statsDiv = document.createElement('div');
+                statsDiv.className = 'alert alert-success mt-3';
+                statsDiv.innerHTML = `
+                    <h6><i class="fas fa-chart-pie"></i> Familien-Statistiken</h6>
+                    <div class="row">
+                        <div class="col-md-4">Vorfahren: ${ancestors.length}</div>
+                        <div class="col-md-4">Nachkommen: ${descendants.length}</div>
+                        <div class="col-md-4">Gesamte Familie: ${totalFamily}</div>
+                    </div>
+                `;
+                container.appendChild(statsDiv);
+            }
+            
+            // Falls keine Verwandten gefunden wurden
+            if (container.children.length === 1) { // Nur das ausgewählte Schaf
+                const noRelativesDiv = document.createElement('div');
+                noRelativesDiv.className = 'alert alert-info mt-3';
+                noRelativesDiv.innerHTML = `
+                    <i class="fas fa-info-circle"></i> Keine Familienbeziehungen für dieses Schaf gefunden.
+                `;
+                container.appendChild(noRelativesDiv);
             }
         }
 
