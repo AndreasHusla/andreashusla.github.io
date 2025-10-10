@@ -7,7 +7,6 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
     <style>
         :root {
             --primary: #6366f1;
@@ -2341,7 +2340,7 @@
                                 <span>Position</span>
                                 <span>Beschreibung</span>
                                 <span>Menge</span>
-                                <span>Einzelpreis Brutto (€)</span>
+                                <span>Einzelpreis (€)</span>
                                 <span>MwSt. (%)</span>
                                 <span>Gesamt (€)</span>
                                 <span>Aktion</span>
@@ -2361,7 +2360,7 @@
                         <div class="form-row">
                             <div class="form-group">
                                 <label>Standard-Steuersatz für neue Positionen (%):</label>
-                                <input type="number" id="invoice-tax-rate" value="10" min="0" max="100" step="0.01">
+                                <input type="number" id="invoice-tax-rate" value="19" min="0" max="100" step="0.01">
                                 <small style="color: #666;">Wird für neue Positionen als Voreinstellung verwendet</small>
                             </div>
                             <div class="form-group">
@@ -2405,139 +2404,6 @@
                     <i class="fas fa-file-pdf"></i> PDF-Rechnung erstellen
                 </button>
                 <button class="btn btn-outline" onclick="closeModal('invoice-editor-modal')">
-                    <i class="fas fa-times"></i> Abbrechen
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Offer Editor Modal -->
-    <div id="offer-editor-modal" class="modal">
-        <div class="modal-content" style="max-width: 1000px; width: 90vw;">
-            <div class="modal-header">
-                <h2><i class="fas fa-file-alt"></i> Angebot erstellen</h2>
-                <button class="close" onclick="closeModal('offer-editor-modal')">
-                    <i class="fas fa-times"></i>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="offer-form">
-                    <!-- Customer Information -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-user"></i> Kundeninformationen</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Vorname*:</label>
-                                <input type="text" id="offer-firstname" required>
-                            </div>
-                            <div class="form-group">
-                                <label>Nachname*:</label>
-                                <input type="text" id="offer-lastname" required>
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>E-Mail:</label>
-                                <input type="email" id="offer-email">
-                            </div>
-                            <div class="form-group">
-                                <label>Telefon:</label>
-                                <input type="text" id="offer-phone">
-                            </div>
-                        </div>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Adresse:</label>
-                                <textarea id="offer-address" rows="3" placeholder="Straße, Hausnummer&#10;PLZ Ort&#10;Land"></textarea>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Booking Information -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-calendar"></i> Buchungsinformationen</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Check-in:</label>
-                                <input type="date" id="offer-checkin" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>Check-out:</label>
-                                <input type="date" id="offer-checkout" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>Zimmer:</label>
-                                <input type="text" id="offer-room" readonly>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Offer Items -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-list"></i> Angebotspositionen</h3>
-                        <div class="invoice-items-container">
-                            <div class="invoice-items-header">
-                                <span>Position</span>
-                                <span>Beschreibung</span>
-                                <span>Menge</span>
-                                <span>Einzelpreis Brutto (€)</span>
-                                <span>MwSt. (%)</span>
-                                <span>Gesamt (€)</span>
-                                <span>Aktion</span>
-                            </div>
-                            <div id="offer-items-list">
-                                <!-- Offer items will be added here -->
-                            </div>
-                            <button type="button" class="btn btn-outline btn-sm" onclick="addOfferItemWithDefaultTax()">
-                                <i class="fas fa-plus"></i> Position hinzufügen
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Tax and Totals -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-calculator"></i> Gültigkeit & Summe</h3>
-                        <div class="form-row">
-                            <div class="form-group">
-                                <label>Standard-Steuersatz für neue Positionen (%):</label>
-                                <input type="number" id="offer-tax-rate" value="10" min="0" max="100" step="0.01">
-                                <small style="color: #666;">Wird für neue Positionen als Voreinstellung verwendet</small>
-                            </div>
-                            <div class="form-group">
-                                <label>Angebot gültig bis:</label>
-                                <input type="date" id="offer-validity">
-                            </div>
-                        </div>
-                        <div class="invoice-totals">
-                            <div class="total-row">
-                                <span>Zwischensumme:</span>
-                                <span id="offer-subtotal">€0.00</span>
-                            </div>
-                            <div class="total-row">
-                                <span>MwSt.:</span>
-                                <span id="offer-tax">€0.00</span>
-                            </div>
-                            <div class="total-row total-final">
-                                <span>Gesamtbetrag:</span>
-                                <span id="offer-total">€0.00</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Remarks -->
-                    <div class="form-section">
-                        <h3><i class="fas fa-sticky-note"></i> Bemerkungen</h3>
-                        <div class="form-group">
-                            <textarea id="offer-remarks" rows="3" placeholder="Zusätzliche Bemerkungen zum Angebot..."></textarea>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-success" onclick="generateAdvancedOffer()">
-                    <i class="fas fa-file-pdf"></i> PDF-Angebot erstellen
-                </button>
-                <button class="btn btn-outline" onclick="closeModal('offer-editor-modal')">
                     <i class="fas fa-times"></i> Abbrechen
                 </button>
             </div>
@@ -3756,9 +3622,6 @@
                             <button class="btn btn-outline btn-xs" onclick="editBooking('${booking.id}')" title="Bearbeiten">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-success btn-xs" onclick="openOfferEditor('${booking.id}')" title="Angebot erstellen">
-                                <i class="fas fa-file-alt"></i>
-                            </button>
                             <button class="btn btn-info btn-xs" onclick="openInvoiceEditor('${booking.id}')" title="Rechnung erstellen">
                                 <i class="fas fa-file-invoice"></i>
                             </button>
@@ -4243,7 +4106,7 @@
                 doc.text('Position', 25, tableStartY + 7);
                 doc.text('Beschreibung', 60, tableStartY + 7);
                 doc.text('Menge', 120, tableStartY + 7);
-                doc.text('Einzelpreis Brutto', 140, tableStartY + 7);
+                doc.text('Einzelpreis', 140, tableStartY + 7);
                 doc.text('Gesamtpreis', 165, tableStartY + 7);
                 
                 // Invoice Items
@@ -4308,7 +4171,7 @@
                 doc.text('Bei Fragen zur Rechnung wenden Sie sich gerne an uns.', 20, yPosition + 5);
                 
                 doc.text(`Erstellt am: ${new Date().toLocaleString('de-DE')}`, 20, yPosition + 15);
-                doc.text(`${companyData.name || 'Hotel Verwaltungssystem'} - Moderne Hotelmanagement-Software`, 20, yPosition + 20);
+                doc.text('Hotel Verwaltungssystem - Moderne Hotelmanagement-Software', 20, yPosition + 20);
                 
                 // Save PDF
                 const fileName = `Rechnung_${booking.id}_${booking.lastname}.pdf`;
@@ -4472,7 +4335,7 @@
             const checkoutDate = new Date(booking.checkout);
             const nights = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
             
-            const defaultTaxRate = parseFloat(document.getElementById('invoice-tax-rate').value) ?? 10;
+            const defaultTaxRate = parseFloat(document.getElementById('invoice-tax-rate').value) || 19;
             const roomDisplay = room.name 
                 ? `Zimmer ${booking.room} "${room.name}"`
                 : `Zimmer ${booking.room}`;
@@ -4486,11 +4349,11 @@
         }
 
         function addInvoiceItemWithDefaultTax() {
-            const defaultTaxRate = parseFloat(document.getElementById('invoice-tax-rate').value) ?? 10;
+            const defaultTaxRate = parseFloat(document.getElementById('invoice-tax-rate').value) || 19;
             addInvoiceItem('', 1, 0, defaultTaxRate);
         }
 
-        function addInvoiceItem(description = '', quantity = 1, unitPrice = 0, taxRate = 10) {
+        function addInvoiceItem(description = '', quantity = 1, unitPrice = 0, taxRate = 19) {
             invoiceItemCounter++;
             const itemId = `item-${invoiceItemCounter}`;
             
@@ -4499,7 +4362,7 @@
                 description: description,
                 quantity: parseFloat(quantity) || 1,
                 unitPrice: parseFloat(unitPrice) || 0,
-                taxRate: parseFloat(taxRate) ?? 10
+                taxRate: parseFloat(taxRate) || 19
             };
 
             currentInvoiceItems.push(item);
@@ -4518,7 +4381,7 @@
             // Ensure all items have a taxRate
             currentInvoiceItems.forEach(item => {
                 if (item.taxRate === undefined || item.taxRate === null) {
-                    item.taxRate = 10; // Default tax rate
+                    item.taxRate = 19; // Default tax rate
                 }
             });
 
@@ -4530,7 +4393,7 @@
                     <textarea rows="2" placeholder="Beschreibung" onchange="updateInvoiceItem('${item.id}', 'description', this.value)">${item.description}</textarea>
                     <input type="number" min="0" step="0.01" value="${item.quantity}" onchange="updateInvoiceItem('${item.id}', 'quantity', this.value)">
                     <input type="number" min="0" step="0.01" value="${item.unitPrice.toFixed(2)}" onchange="updateInvoiceItem('${item.id}', 'unitPrice', this.value)">
-                    <input type="number" min="0" max="100" step="0.01" value="${(item.taxRate ?? 10).toFixed(2)}" onchange="updateInvoiceItem('${item.id}', 'taxRate', this.value)">
+                    <input type="number" min="0" max="100" step="0.01" value="${(item.taxRate || 19).toFixed(2)}" onchange="updateInvoiceItem('${item.id}', 'taxRate', this.value)">
                     <span class="item-total">€${(item.quantity * item.unitPrice).toFixed(2)}</span>
                     <button type="button" class="btn btn-danger btn-sm" onclick="removeInvoiceItem('${item.id}')" title="Position entfernen">
                         <i class="fas fa-trash"></i>
@@ -4555,24 +4418,22 @@
         }
 
         function calculateInvoiceTotal() {
-            let netSubtotal = 0;
+            let subtotal = 0;
             let totalTaxAmount = 0;
-            let grossTotal = 0;
 
             currentInvoiceItems.forEach(item => {
-                const grossItemTotal = item.quantity * item.unitPrice; // unitPrice ist jetzt Brutto
-                const taxRate = item.taxRate ?? 10;
-                const netItemTotal = grossItemTotal / (1 + taxRate / 100);
-                const itemTaxAmount = grossItemTotal - netItemTotal;
+                const itemSubtotal = item.quantity * item.unitPrice;
+                const itemTaxAmount = (itemSubtotal * (item.taxRate || 19)) / 100;
                 
-                netSubtotal += netItemTotal;
+                subtotal += itemSubtotal;
                 totalTaxAmount += itemTaxAmount;
-                grossTotal += grossItemTotal;
             });
 
-            document.getElementById('invoice-subtotal').textContent = `€${netSubtotal.toFixed(2)}`;
+            const total = subtotal + totalTaxAmount;
+
+            document.getElementById('invoice-subtotal').textContent = `€${subtotal.toFixed(2)}`;
             document.getElementById('invoice-tax').textContent = `€${totalTaxAmount.toFixed(2)}`;
-            document.getElementById('invoice-total').textContent = `€${grossTotal.toFixed(2)}`;
+            document.getElementById('invoice-total').textContent = `€${total.toFixed(2)}`;
         }
 
         function generateAdvancedInvoice() {
@@ -4601,10 +4462,10 @@
                     try {
                         // Use the pre-converted logo data URL
                         const logoImg = document.getElementById('hotel-logo');
-                        const logoWidth = 25;
+                        const logoWidth = 40;
                         const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
                         doc.addImage(logoDataURL, 'PNG', 20, yPosition, logoWidth, logoHeight);
-                        yPosition = Math.max(yPosition + logoHeight + 3, yPosition + 20);
+                        yPosition = Math.max(yPosition + logoHeight + 5, yPosition + 25);
                     } catch (error) {
                         console.warn('Could not add logo to PDF:', error);
                         yPosition += 5;
@@ -4614,12 +4475,11 @@
                 }
 
                 // Company Header
-                yPosition += 5; // Etwas Abstand zum Logo
-                doc.setFontSize(16);
+                doc.setFontSize(20);
                 doc.setTextColor(99, 102, 241);
                 doc.text(companyData.name, 20, yPosition);
                 
-                yPosition += 6;
+                yPosition += 7;
                 if (companyData.subtitle) {
                     doc.setFontSize(12);
                     doc.text(companyData.subtitle, 20, yPosition);
@@ -4653,15 +4513,12 @@
                 
                 doc.setFontSize(10);
                 doc.setTextColor(0, 0, 0);
-                const invoiceDate = new Date().toLocaleDateString('de-DE');
                 doc.text(`Rechnungsnummer: ${bookingId}`, 120, 40);
-                doc.text(`Rechnungsdatum: ${invoiceDate}`, 120, 45);
+                doc.text(`Rechnungsdatum: ${new Date().toLocaleDateString('de-DE')}`, 120, 45);
                 doc.text(`Buchungsnummer: ${bookingId}`, 120, 50);
                 
-                
                 // Customer Details
-                yPosition = Math.max(yPosition + 10, 60);
-                const customerStartY = yPosition;
+                yPosition = Math.max(yPosition + 20, 70);
                 doc.setFontSize(12);
                 doc.setTextColor(99, 102, 241);
                 doc.text('Rechnungsadresse:', 20, yPosition);
@@ -4695,26 +4552,26 @@
                     doc.text(phone, 20, yPosition);
                 }
                 
-                // Booking Details - rechts neben der Rechnungsadresse
-                let bookingDetailsY = customerStartY;
+                // Booking Details
+                yPosition += 20;
                 doc.setFontSize(12);
                 doc.setTextColor(99, 102, 241);
-                doc.text('Buchungsdetails:', 120, bookingDetailsY);
+                doc.text('Buchungsdetails:', 20, yPosition);
                 
-                bookingDetailsY += 10;
+                yPosition += 10;
                 doc.setFontSize(10);
                 doc.setTextColor(0, 0, 0);
                 
                 const checkin = document.getElementById('invoice-checkin').value;
                 const checkout = document.getElementById('invoice-checkout').value;
-                doc.text(`Check-in: ${formatDate(checkin)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`Check-out: ${formatDate(checkout)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`${document.getElementById('invoice-room').value}`, 120, bookingDetailsY);
+                doc.text(`Check-in: ${formatDate(checkin)}`, 20, yPosition);
+                yPosition += 5;
+                doc.text(`Check-out: ${formatDate(checkout)}`, 20, yPosition);
+                yPosition += 5;
+                doc.text(`${document.getElementById('invoice-room').value}`, 20, yPosition);
                 
-                // Invoice Items Table - nach dem längeren Block positionieren
-                yPosition = Math.max(yPosition, bookingDetailsY) + 10;
+                // Invoice Items Table
+                yPosition += 20;
                 const tableStartY = yPosition;
                 
                 // Table header
@@ -4722,12 +4579,11 @@
                 doc.rect(20, tableStartY, 170, 10, 'F');
                 
                 doc.setTextColor(255, 255, 255);
-                doc.setFontSize(9);
+                doc.setFontSize(10);
                 doc.text('Pos.', 25, tableStartY + 7);
                 doc.text('Beschreibung', 40, tableStartY + 7);
-                doc.text('Menge', 110, tableStartY + 7);
-                doc.text('Einzelpreis', 130, tableStartY + 7);
-                doc.text('MwSt.%', 150, tableStartY + 7);
+                doc.text('Menge', 120, tableStartY + 7);
+                doc.text('Einzelpreis', 140, tableStartY + 7);
                 doc.text('Gesamtpreis', 165, tableStartY + 7);
                 
                 // Table items
@@ -4736,67 +4592,63 @@
                 
                 currentInvoiceItems.forEach((item, index) => {
                     const itemTotal = item.quantity * item.unitPrice;
-                    const taxRate = item.taxRate ?? 10;
                     
-                    doc.setFontSize(9);
                     doc.text(`${index + 1}`, 25, yPosition);
                     
                     // Handle long descriptions
                     const description = item.description || '';
-                    const maxDescriptionWidth = 65;
+                    const maxDescriptionWidth = 75;
                     const descriptionLines = doc.splitTextToSize(description, maxDescriptionWidth);
                     doc.text(descriptionLines, 40, yPosition);
                     
-                    doc.text(`${item.quantity}`, 112, yPosition);
-                    doc.text(`€${item.unitPrice.toFixed(2)}`, 132, yPosition);
-                    doc.text(`${taxRate}%`, 152, yPosition);
-                    doc.text(`€${itemTotal.toFixed(2)}`, 167, yPosition);
+                    doc.text(`${item.quantity}`, 125, yPosition);
+                    doc.text(`€${item.unitPrice.toFixed(2)}`, 145, yPosition);
+                    doc.text(`€${itemTotal.toFixed(2)}`, 170, yPosition);
                     
                     yPosition += Math.max(5, descriptionLines.length * 5);
                 });
                 
                 // Add line below items
-                yPosition += 3;
+                yPosition += 5;
                 doc.line(20, yPosition, 190, yPosition);
                 
-                // Totals with individual tax rates (Brutto-Rechnung)
-                let netSubtotal = 0;
+                // Totals with individual tax rates
+                let subtotal = 0;
                 let totalTaxAmount = 0;
-                let grossTotal = 0;
                 const taxBreakdown = new Map();
 
                 currentInvoiceItems.forEach(item => {
-                    const grossItemTotal = item.quantity * item.unitPrice; // unitPrice ist jetzt Brutto
-                    const taxRate = item.taxRate ?? 10;
-                    const netItemTotal = grossItemTotal / (1 + taxRate / 100);
-                    const itemTaxAmount = grossItemTotal - netItemTotal;
+                    const itemSubtotal = item.quantity * item.unitPrice;
+                    const taxRate = item.taxRate || 19;
+                    const itemTaxAmount = (itemSubtotal * taxRate) / 100;
                     
-                    netSubtotal += netItemTotal;
+                    subtotal += itemSubtotal;
                     totalTaxAmount += itemTaxAmount;
-                    grossTotal += grossItemTotal;
                     
                     // Group by tax rate for breakdown
                     const taxKey = taxRate.toFixed(1);
                     if (!taxBreakdown.has(taxKey)) {
                         taxBreakdown.set(taxKey, { subtotal: 0, tax: 0 });
                     }
-                    taxBreakdown.get(taxKey).subtotal += netItemTotal;
+                    taxBreakdown.get(taxKey).subtotal += itemSubtotal;
                     taxBreakdown.get(taxKey).tax += itemTaxAmount;
                 });
+
+                const total = subtotal + totalTaxAmount;
                 
-                yPosition += 8;
+                yPosition += 15;
                 doc.text('Zwischensumme:', 140, yPosition);
-                doc.text(`€${netSubtotal.toFixed(2)}`, 175, yPosition);
+                doc.text(`€${subtotal.toFixed(2)}`, 170, yPosition);
                 
                 yPosition += 8;
                 // Show tax breakdown by rate
                 if (taxBreakdown.size === 1) {
                     const [taxRate] = taxBreakdown.keys();
                     doc.text(`MwSt. (${taxRate}%):`, 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
+                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 170, yPosition);
                 } else {
                     doc.text('MwSt.:', 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
+                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 170, yPosition);
                     yPosition += 5;
                     doc.setFontSize(8);
                     for (const [taxRate, breakdown] of taxBreakdown) {
@@ -4813,18 +4665,10 @@
                 doc.setFontSize(12);
                 doc.setTextColor(99, 102, 241);
                 doc.text('Gesamtbetrag:', 140, yPosition);
-                doc.text(`€${grossTotal.toFixed(2)}`, 175, yPosition);
+                doc.text(`€${total.toFixed(2)}`, 170, yPosition);
                 
-                // QR Code hinzufügen
-                const qrData = `RG:${bookingId}|DATUM:${invoiceDate}|BETRAG:€${grossTotal.toFixed(2)}`;
-                const qr = new QRious({
-                    value: qrData,
-                    size: 80
-                });
-                doc.addImage(qr.toDataURL(), 'PNG', 20, yPosition - 25, 25, 25);
-                
-                // Payment and Remarks  
-                yPosition += 10;
+                // Payment and Remarks
+                yPosition += 20;
                 doc.setFontSize(10);
                 doc.setTextColor(0, 0, 0);
                 
@@ -4832,6 +4676,15 @@
                 doc.text('Zahlungsart:', 20, yPosition);
                 doc.text(payment, 60, yPosition);
                 
+                const remarks = document.getElementById('invoice-remarks').value;
+                if (remarks) {
+                    yPosition += 10;
+                    doc.text('Bemerkungen:', 20, yPosition);
+                    yPosition += 5;
+                    const remarkLines = doc.splitTextToSize(remarks, 170);
+                    doc.text(remarkLines, 20, yPosition);
+                    yPosition += remarkLines.length * 5;
+                }
 
                 // Bank details if available
                 if (companyData.iban) {
@@ -4852,7 +4705,7 @@
                 }
                 
                 // Footer
-                yPosition = Math.max(yPosition + 10, 250);
+                yPosition = Math.max(yPosition + 20, 260);
                 doc.setFontSize(8);
                 doc.setTextColor(128, 128, 128);
                 doc.text('Vielen Dank für Ihren Aufenthalt bei uns!', 20, yPosition);
@@ -4860,7 +4713,7 @@
                 
                 // Legal footer
                 yPosition += 15;
-                let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | ${companyData.name || 'Hotel Verwaltungssystem'}`;
+                let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | Hotel Verwaltungssystem`;
                 if (companyData.manager) {
                     footerText += ` | Geschäftsführer: ${companyData.manager}`;
                 }
@@ -4890,456 +4743,6 @@
             }
         }
 
-        // Advanced Offer Editor
-        let currentOfferItems = [];
-        let offerItemCounter = 0;
-
-        function openOfferEditor(bookingId) {
-            const booking = bookings.find(b => b.id === bookingId);
-            if (!booking) {
-                showAlert('Buchung nicht gefunden!', 'danger');
-                return;
-            }
-
-            const room = rooms.find(r => r.number === booking.room);
-            if (!room) {
-                showAlert('Zimmer-Informationen nicht gefunden!', 'danger');
-                return;
-            }
-
-            // Reset offer items
-            currentOfferItems = [];
-            offerItemCounter = 0;
-
-            // Fill customer information
-            const guest = guests.find(g =>
-                g.firstname === booking.firstname &&
-                g.lastname === booking.lastname &&
-                (g.email === booking.email || !booking.email)
-            );
-
-            document.getElementById('offer-firstname').value = booking.firstname || '';
-            document.getElementById('offer-lastname').value = booking.lastname || '';
-            document.getElementById('offer-email').value = booking.email || '';
-            document.getElementById('offer-phone').value = booking.phone || '';
-            document.getElementById('offer-address').value = guest?.address || '';
-
-            // Fill booking information
-            document.getElementById('offer-checkin').value = booking.checkin || '';
-            document.getElementById('offer-checkout').value = booking.checkout || '';
-            const roomDisplayForOffer = room.name
-                ? `Zimmer ${booking.room} "${room.name}" (${room.type})`
-                : `Zimmer ${booking.room} (${room.type})`;
-            document.getElementById('offer-room').value = roomDisplayForOffer;
-
-            // Set validity date (default: 14 days from today)
-            const validityDate = new Date();
-            validityDate.setDate(validityDate.getDate() + 14);
-            document.getElementById('offer-validity').value = validityDate.toISOString().split('T')[0];
-
-            // Set remarks
-            document.getElementById('offer-remarks').value = booking.remarks || '';
-
-            // Add default accommodation item
-            const checkinDate = new Date(booking.checkin);
-            const checkoutDate = new Date(booking.checkout);
-            const nights = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
-
-            const defaultTaxRate = parseFloat(document.getElementById('offer-tax-rate').value) ?? 10;
-            const roomDisplay = room.name
-                ? `Zimmer ${booking.room} "${room.name}"`
-                : `Zimmer ${booking.room}`;
-            addOfferItem(`Übernachtung ${roomDisplay}`, nights, room.price, defaultTaxRate);
-
-            // Store booking reference
-            document.getElementById('offer-editor-modal').dataset.bookingId = bookingId;
-
-            // Show modal
-            document.getElementById('offer-editor-modal').style.display = 'block';
-        }
-
-        function addOfferItemWithDefaultTax() {
-            const defaultTaxRate = parseFloat(document.getElementById('offer-tax-rate').value) ?? 10;
-            addOfferItem('', 1, 0, defaultTaxRate);
-        }
-
-        function addOfferItem(description = '', quantity = 1, unitPrice = 0, taxRate = 10) {
-            offerItemCounter++;
-            const itemId = `offer-item-${offerItemCounter}`;
-
-            const item = {
-                id: itemId,
-                description: description,
-                quantity: parseFloat(quantity) || 1,
-                unitPrice: parseFloat(unitPrice) || 0,
-                taxRate: parseFloat(taxRate) ?? 10
-            };
-
-            currentOfferItems.push(item);
-            renderOfferItems();
-        }
-
-        function removeOfferItem(itemId) {
-            currentOfferItems = currentOfferItems.filter(item => item.id !== itemId);
-            renderOfferItems();
-        }
-
-        function renderOfferItems() {
-            const container = document.getElementById('offer-items-list');
-            container.innerHTML = '';
-
-            currentOfferItems.forEach(item => {
-                if (!item.hasOwnProperty('taxRate')) {
-                    item.taxRate = 10;
-                }
-            });
-
-            currentOfferItems.forEach((item, index) => {
-                const itemTotal = item.quantity * item.unitPrice;
-
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'invoice-item-row';
-                itemDiv.innerHTML = `
-                    <span class="item-position">${index + 1}</span>
-                    <input type="text" class="item-description" value="${item.description}"
-                           onchange="currentOfferItems.find(i => i.id === '${item.id}').description = this.value; renderOfferItems()">
-                    <input type="number" class="item-quantity" value="${item.quantity}" min="0" step="0.01"
-                           onchange="currentOfferItems.find(i => i.id === '${item.id}').quantity = parseFloat(this.value) || 0; renderOfferItems()">
-                    <input type="number" class="item-price" value="${item.unitPrice}" min="0" step="0.01"
-                           onchange="currentOfferItems.find(i => i.id === '${item.id}').unitPrice = parseFloat(this.value) || 0; renderOfferItems()">
-                    <input type="number" class="item-tax-rate" value="${item.taxRate ?? 10}" min="0" max="100" step="0.01"
-                           onchange="currentOfferItems.find(i => i.id === '${item.id}').taxRate = parseFloat(this.value) ?? 10; renderOfferItems()">
-                    <span class="item-total">€${itemTotal.toFixed(2)}</span>
-                    <button type="button" class="btn btn-xs btn-danger" onclick="removeOfferItem('${item.id}')">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                `;
-                container.appendChild(itemDiv);
-            });
-
-            updateOfferTotals();
-        }
-
-        function updateOfferTotals() {
-            let netSubtotal = 0;
-            let totalTaxAmount = 0;
-            let grossTotal = 0;
-
-            currentOfferItems.forEach(item => {
-                const grossItemTotal = item.quantity * item.unitPrice;
-                const taxRate = item.taxRate ?? 10;
-                const netItemTotal = grossItemTotal / (1 + taxRate / 100);
-                const itemTaxAmount = grossItemTotal - netItemTotal;
-
-                netSubtotal += netItemTotal;
-                totalTaxAmount += itemTaxAmount;
-                grossTotal += grossItemTotal;
-            });
-
-            document.getElementById('offer-subtotal').textContent = `€${netSubtotal.toFixed(2)}`;
-            document.getElementById('offer-tax').textContent = `€${totalTaxAmount.toFixed(2)}`;
-            document.getElementById('offer-total').textContent = `€${grossTotal.toFixed(2)}`;
-        }
-
-        function generateAdvancedOffer() {
-            try {
-                if (currentOfferItems.length === 0) {
-                    showAlert('Bitte fügen Sie mindestens eine Position hinzu!', 'warning');
-                    return;
-                }
-
-                const bookingId = document.getElementById('offer-editor-modal').dataset.bookingId;
-
-                // Load company data
-                loadCompanyData();
-
-                // Initialize jsPDF
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-
-                doc.setFont("helvetica");
-
-                let yPosition = 20;
-
-                // Add logo if available
-                if (logoDataURL) {
-                    try {
-                        const logoImg = document.getElementById('hotel-logo');
-                        const logoWidth = 25;
-                        const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
-                        doc.addImage(logoDataURL, 'PNG', 20, yPosition, logoWidth, logoHeight);
-                        yPosition = Math.max(yPosition + logoHeight + 3, yPosition + 20);
-                    } catch (error) {
-                        console.warn('Could not add logo to PDF:', error);
-                        yPosition += 5;
-                    }
-                } else {
-                    yPosition += 5;
-                }
-
-                // Company Header
-                yPosition += 5;
-                doc.setFontSize(16);
-                doc.setTextColor(40, 167, 69); // Green color for offer
-                doc.text(companyData.name, 20, yPosition);
-
-                yPosition += 6;
-                if (companyData.subtitle) {
-                    doc.setFontSize(12);
-                    doc.text(companyData.subtitle, 20, yPosition);
-                    yPosition += 7;
-                }
-
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text(companyData.street, 20, yPosition);
-                yPosition += 5;
-                doc.text(companyData.city, 20, yPosition);
-                yPosition += 5;
-                if (companyData.country !== 'Deutschland') {
-                    doc.text(companyData.country, 20, yPosition);
-                    yPosition += 5;
-                }
-                if (companyData.phone) {
-                    doc.text(`Tel: ${companyData.phone}`, 20, yPosition);
-                    yPosition += 5;
-                }
-                doc.text(`E-Mail: ${companyData.email}`, 20, yPosition);
-                if (companyData.website) {
-                    yPosition += 5;
-                    doc.text(`Web: ${companyData.website}`, 20, yPosition);
-                }
-
-                // Offer Title and Details (right side)
-                doc.setFontSize(18);
-                doc.setTextColor(40, 167, 69); // Green color
-                doc.text('ANGEBOT', 120, 30);
-
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                const offerDate = new Date().toLocaleDateString('de-DE');
-                const offerNumber = `ANG-${bookingId}`;
-                doc.text(`Angebotsnummer: ${offerNumber}`, 120, 40);
-                doc.text(`Angebotsdatum: ${offerDate}`, 120, 45);
-
-                const validityDate = document.getElementById('offer-validity').value;
-                if (validityDate) {
-                    doc.text(`Gültig bis: ${formatDate(validityDate)}`, 120, 50);
-                }
-
-                // Customer Details
-                yPosition = Math.max(yPosition + 10, 60);
-                const customerStartY = yPosition;
-                doc.setFontSize(12);
-                doc.setTextColor(40, 167, 69);
-                doc.text('Kunde:', 20, yPosition);
-
-                yPosition += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-
-                const firstname = document.getElementById('offer-firstname').value;
-                const lastname = document.getElementById('offer-lastname').value;
-                doc.text(`${firstname} ${lastname}`, 20, yPosition);
-
-                const address = document.getElementById('offer-address').value;
-                if (address) {
-                    const addressLines = address.split('\n');
-                    addressLines.forEach(line => {
-                        yPosition += 5;
-                        doc.text(line.trim(), 20, yPosition);
-                    });
-                }
-
-                const email = document.getElementById('offer-email').value;
-                if (email) {
-                    yPosition += 5;
-                    doc.text(email, 20, yPosition);
-                }
-
-                const phone = document.getElementById('offer-phone').value;
-                if (phone) {
-                    yPosition += 5;
-                    doc.text(phone, 20, yPosition);
-                }
-
-                // Booking Details
-                let bookingDetailsY = customerStartY;
-                doc.setFontSize(12);
-                doc.setTextColor(40, 167, 69);
-                doc.text('Buchungszeitraum:', 120, bookingDetailsY);
-
-                bookingDetailsY += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-
-                const checkin = document.getElementById('offer-checkin').value;
-                const checkout = document.getElementById('offer-checkout').value;
-                doc.text(`Check-in: ${formatDate(checkin)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`Check-out: ${formatDate(checkout)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`${document.getElementById('offer-room').value}`, 120, bookingDetailsY);
-
-                // Offer Items Table
-                yPosition = Math.max(yPosition, bookingDetailsY) + 10;
-                const tableStartY = yPosition;
-
-                // Table header
-                doc.setFillColor(40, 167, 69);
-                doc.rect(20, tableStartY, 170, 10, 'F');
-
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(9);
-                doc.text('Pos.', 25, tableStartY + 7);
-                doc.text('Beschreibung', 40, tableStartY + 7);
-                doc.text('Menge', 110, tableStartY + 7);
-                doc.text('Einzelpreis', 130, tableStartY + 7);
-                doc.text('MwSt.%', 150, tableStartY + 7);
-                doc.text('Gesamtpreis', 165, tableStartY + 7);
-
-                // Table items
-                yPosition = tableStartY + 15;
-                doc.setTextColor(0, 0, 0);
-
-                currentOfferItems.forEach((item, index) => {
-                    const itemTotal = item.quantity * item.unitPrice;
-                    const taxRate = item.taxRate ?? 10;
-
-                    doc.setFontSize(9);
-                    doc.text(`${index + 1}`, 25, yPosition);
-
-                    const description = item.description || '';
-                    const maxDescriptionWidth = 65;
-                    const descriptionLines = doc.splitTextToSize(description, maxDescriptionWidth);
-                    doc.text(descriptionLines, 40, yPosition);
-
-                    doc.text(`${item.quantity}`, 112, yPosition);
-                    doc.text(`€${item.unitPrice.toFixed(2)}`, 132, yPosition);
-                    doc.text(`${taxRate}%`, 152, yPosition);
-                    doc.text(`€${itemTotal.toFixed(2)}`, 167, yPosition);
-
-                    yPosition += Math.max(5, descriptionLines.length * 5);
-                });
-
-                // Add line below items
-                yPosition += 3;
-                doc.line(20, yPosition, 190, yPosition);
-
-                // Totals
-                let netSubtotal = 0;
-                let totalTaxAmount = 0;
-                let grossTotal = 0;
-                const taxBreakdown = new Map();
-
-                currentOfferItems.forEach(item => {
-                    const grossItemTotal = item.quantity * item.unitPrice;
-                    const taxRate = item.taxRate ?? 10;
-                    const netItemTotal = grossItemTotal / (1 + taxRate / 100);
-                    const itemTaxAmount = grossItemTotal - netItemTotal;
-
-                    netSubtotal += netItemTotal;
-                    totalTaxAmount += itemTaxAmount;
-                    grossTotal += grossItemTotal;
-
-                    const taxKey = taxRate.toFixed(1);
-                    if (!taxBreakdown.has(taxKey)) {
-                        taxBreakdown.set(taxKey, { subtotal: 0, tax: 0 });
-                    }
-                    taxBreakdown.get(taxKey).subtotal += netItemTotal;
-                    taxBreakdown.get(taxKey).tax += itemTaxAmount;
-                });
-
-                yPosition += 8;
-                doc.text('Zwischensumme:', 140, yPosition);
-                doc.text(`€${netSubtotal.toFixed(2)}`, 175, yPosition);
-
-                yPosition += 8;
-                if (taxBreakdown.size === 1) {
-                    const [taxRate] = taxBreakdown.keys();
-                    doc.text(`MwSt. (${taxRate}%):`, 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
-                } else {
-                    doc.text('MwSt.:', 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
-                    yPosition += 5;
-                    doc.setFontSize(8);
-                    for (const [taxRate, breakdown] of taxBreakdown) {
-                        yPosition += 4;
-                        doc.text(`  ${taxRate}%: €${breakdown.tax.toFixed(2)}`, 140, yPosition);
-                    }
-                    doc.setFontSize(10);
-                }
-
-                yPosition += 8;
-                doc.line(140, yPosition, 190, yPosition);
-
-                yPosition += 10;
-                doc.setFontSize(12);
-                doc.setTextColor(40, 167, 69);
-                doc.text('Gesamtbetrag:', 140, yPosition);
-                doc.text(`€${grossTotal.toFixed(2)}`, 175, yPosition);
-
-                // QR Code
-                const qrData = `ANG:${offerNumber}|DATUM:${offerDate}|BETRAG:€${grossTotal.toFixed(2)}`;
-                const qr = new QRious({
-                    value: qrData,
-                    size: 80
-                });
-                doc.addImage(qr.toDataURL(), 'PNG', 20, yPosition - 25, 25, 25);
-
-                // Remarks
-                const remarks = document.getElementById('offer-remarks').value;
-                if (remarks) {
-                    yPosition += 15;
-                    doc.setFontSize(10);
-                    doc.setTextColor(0, 0, 0);
-                    doc.text('Bemerkungen:', 20, yPosition);
-                    yPosition += 5;
-                    const remarksLines = doc.splitTextToSize(remarks, 170);
-                    doc.text(remarksLines, 20, yPosition);
-                    yPosition += remarksLines.length * 5;
-                }
-
-                // Footer
-                yPosition = Math.max(yPosition + 10, 250);
-                doc.setFontSize(8);
-                doc.setTextColor(128, 128, 128);
-                doc.text('Wir freuen uns auf Ihre Buchung!', 20, yPosition);
-                doc.text('Dieses Angebot ist unverbindlich und vorbehaltlich Verfügbarkeit.', 20, yPosition + 5);
-
-                // Legal footer
-                yPosition += 15;
-                let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | ${companyData.name || 'Hotel Verwaltungssystem'}`;
-                if (companyData.manager) {
-                    footerText += ` | Geschäftsführer: ${companyData.manager}`;
-                }
-                if (companyData.register) {
-                    footerText += ` | ${companyData.register}`;
-                }
-                if (companyData.taxNumber) {
-                    footerText += ` | Steuernr: ${companyData.taxNumber}`;
-                }
-                if (companyData.vatId) {
-                    footerText += ` | USt-IdNr: ${companyData.vatId}`;
-                }
-
-                const footerLines = doc.splitTextToSize(footerText, 170);
-                doc.text(footerLines, 20, yPosition);
-
-                // Save PDF
-                const fileName = `Angebot_${offerNumber}_${lastname}.pdf`;
-                doc.save(fileName);
-
-                closeModal('offer-editor-modal');
-                showAlert(`Angebot "${fileName}" wurde erfolgreich erstellt und heruntergeladen!`, 'success');
-
-            } catch (error) {
-                console.error('Error generating advanced offer:', error);
-                showAlert('Fehler beim Erstellen des Angebots. Bitte versuchen Sie es erneut.', 'danger');
-            }
-        }
-
         // Guest management functions
         function renderGuests() {
             console.log('=== renderGuests START ===');
@@ -5347,7 +4750,7 @@
             // Update booking counts before rendering
             updateGuestBookingCounts();
             console.log('After updateGuestBookingCounts, guests:', guests.map(g => ({name: g.firstname + ' ' + g.lastname, bookings: g.bookings})));
-
+            
             const tbody = document.getElementById('guests-table-body');
             tbody.innerHTML = '';
             
@@ -6311,14 +5714,11 @@
                                 <button class="btn btn-primary" onclick="editBookingFromCalendar('${booking.id}')">
                                     <i class="fas fa-edit"></i> Buchung bearbeiten
                                 </button>
-                                <button class="btn btn-success" onclick="openOfferEditor('${booking.id}'); closeModal('calendar-detail-modal');">
-                                    <i class="fas fa-file-alt"></i> Angebot erstellen
+                                <button class="btn btn-danger" onclick="cancelBookingFromCalendar('${booking.id}')">
+                                    <i class="fas fa-ban"></i> Buchung stornieren
                                 </button>
                                 <button class="btn btn-info" onclick="generateInvoiceFromCalendar('${booking.id}')">
                                     <i class="fas fa-file-invoice"></i> Rechnung generieren
-                                </button>
-                                <button class="btn btn-danger" onclick="cancelBookingFromCalendar('${booking.id}')">
-                                    <i class="fas fa-ban"></i> Buchung stornieren
                                 </button>
                             </div>
                         </div>
@@ -6326,12 +5726,12 @@
                 }
             } else if (status.status === 'checkin') {
                 // Check-in day - booking editable
-                const booking = bookings.find(b =>
-                    b.room === room.number &&
+                const booking = bookings.find(b => 
+                    b.room === room.number && 
                     b.checkin === dateStr &&
                     b.status !== 'Storniert'
                 );
-
+                
                 if (booking) {
                     content += `
                         <div class="form-section">
@@ -6342,19 +5742,16 @@
                             <p><strong>Gesamtpreis:</strong> €${booking.total}</p>
                             <p><strong>Status:</strong> ${booking.status}</p>
                             ${booking.remarks ? `<p><strong>Bemerkungen:</strong> ${booking.remarks}</p>` : ''}
-
+                            
                             <div class="btn-group mt-4">
                                 <button class="btn btn-primary" onclick="editBookingFromCalendar('${booking.id}')">
                                     <i class="fas fa-edit"></i> Buchung bearbeiten
                                 </button>
-                                <button class="btn btn-success" onclick="openOfferEditor('${booking.id}'); closeModal('calendar-detail-modal');">
-                                    <i class="fas fa-file-alt"></i> Angebot erstellen
+                                <button class="btn btn-danger" onclick="cancelBookingFromCalendar('${booking.id}')">
+                                    <i class="fas fa-ban"></i> Buchung stornieren
                                 </button>
                                 <button class="btn btn-info" onclick="generateInvoiceFromCalendar('${booking.id}')">
                                     <i class="fas fa-file-invoice"></i> Rechnung generieren
-                                </button>
-                                <button class="btn btn-danger" onclick="cancelBookingFromCalendar('${booking.id}')">
-                                    <i class="fas fa-ban"></i> Buchung stornieren
                                 </button>
                             </div>
                         </div>
