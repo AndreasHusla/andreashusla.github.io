@@ -2537,6 +2537,9 @@
                 <button class="btn btn-success" onclick="generateAdvancedOffer()">
                     <i class="fas fa-file-pdf"></i> PDF-Angebot erstellen
                 </button>
+                <button class="btn btn-info" onclick="generateOptionConfirmation()">
+                    <i class="fas fa-file-signature"></i> PDF-Optionsbestätigung erstellen
+                </button>
                 <button class="btn btn-outline" onclick="closeModal('offer-editor-modal')">
                     <i class="fas fa-times"></i> Abbrechen
                 </button>
@@ -5337,6 +5340,316 @@
             } catch (error) {
                 console.error('Error generating advanced offer:', error);
                 showAlert('Fehler beim Erstellen des Angebots. Bitte versuchen Sie es erneut.', 'danger');
+            }
+        }
+
+        function generateOptionConfirmation() {
+            try {
+                if (currentOfferItems.length === 0) {
+                    showAlert('Bitte fügen Sie mindestens eine Position hinzu!', 'warning');
+                    return;
+                }
+
+                const bookingId = document.getElementById('offer-editor-modal').dataset.bookingId;
+
+                // Load company data
+                loadCompanyData();
+
+                // Initialize jsPDF
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF();
+
+                doc.setFont("helvetica");
+
+                let yPosition = 20;
+
+                // Add logo if available
+                if (logoDataURL) {
+                    try {
+                        const logoImg = document.getElementById('hotel-logo');
+                        const logoWidth = 25;
+                        const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
+                        doc.addImage(logoDataURL, 'PNG', 20, yPosition, logoWidth, logoHeight);
+                        yPosition = Math.max(yPosition + logoHeight + 3, yPosition + 20);
+                    } catch (error) {
+                        console.warn('Could not add logo to PDF:', error);
+                        yPosition += 5;
+                    }
+                } else {
+                    yPosition += 5;
+                }
+
+                // Company Header
+                yPosition += 5;
+                doc.setFontSize(16);
+                doc.setTextColor(40, 167, 69); // Green color
+                doc.text(companyData.name, 20, yPosition);
+
+                yPosition += 6;
+                if (companyData.subtitle) {
+                    doc.setFontSize(12);
+                    doc.text(companyData.subtitle, 20, yPosition);
+                    yPosition += 7;
+                }
+
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                doc.text(companyData.street, 20, yPosition);
+                yPosition += 5;
+                doc.text(companyData.city, 20, yPosition);
+                yPosition += 5;
+                if (companyData.country !== 'Deutschland') {
+                    doc.text(companyData.country, 20, yPosition);
+                    yPosition += 5;
+                }
+                if (companyData.phone) {
+                    doc.text(`Tel: ${companyData.phone}`, 20, yPosition);
+                    yPosition += 5;
+                }
+                doc.text(`E-Mail: ${companyData.email}`, 20, yPosition);
+                if (companyData.website) {
+                    yPosition += 5;
+                    doc.text(`Web: ${companyData.website}`, 20, yPosition);
+                }
+
+                // Title and Details (right side)
+                doc.setFontSize(18);
+                doc.setTextColor(40, 167, 69);
+                doc.text('OPTIONSBESTÄTIGUNG', 120, 30);
+
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+                const offerDate = new Date().toLocaleDateString('de-DE');
+                const optionNumber = `OPT-${bookingId}`;
+                doc.text(`Optionsnummer: ${optionNumber}`, 120, 40);
+                doc.text(`Datum: ${offerDate}`, 120, 45);
+
+                const validityDate = document.getElementById('offer-validity').value;
+                if (validityDate) {
+                    doc.text(`Option gültig bis: ${formatDate(validityDate)}`, 120, 50);
+                }
+
+                // Customer Details
+                yPosition = Math.max(yPosition + 10, 60);
+                const customerStartY = yPosition;
+                doc.setFontSize(12);
+                doc.setTextColor(40, 167, 69);
+                doc.text('Kunde:', 20, yPosition);
+
+                yPosition += 10;
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+
+                const firstname = document.getElementById('offer-firstname').value;
+                const lastname = document.getElementById('offer-lastname').value;
+                doc.text(`${firstname} ${lastname}`, 20, yPosition);
+
+                const address = document.getElementById('offer-address').value;
+                if (address) {
+                    const addressLines = address.split('\n');
+                    addressLines.forEach(line => {
+                        yPosition += 5;
+                        doc.text(line.trim(), 20, yPosition);
+                    });
+                }
+
+                const email = document.getElementById('offer-email').value;
+                if (email) {
+                    yPosition += 5;
+                    doc.text(email, 20, yPosition);
+                }
+
+                const phone = document.getElementById('offer-phone').value;
+                if (phone) {
+                    yPosition += 5;
+                    doc.text(phone, 20, yPosition);
+                }
+
+                // Booking Details
+                let bookingDetailsY = customerStartY;
+                doc.setFontSize(12);
+                doc.setTextColor(40, 167, 69);
+                doc.text('Buchungszeitraum:', 120, bookingDetailsY);
+
+                bookingDetailsY += 10;
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+
+                const checkin = document.getElementById('offer-checkin').value;
+                const checkout = document.getElementById('offer-checkout').value;
+                doc.text(`Check-in: ${formatDate(checkin)}`, 120, bookingDetailsY);
+                bookingDetailsY += 5;
+                doc.text(`Check-out: ${formatDate(checkout)}`, 120, bookingDetailsY);
+                bookingDetailsY += 5;
+                doc.text(`${document.getElementById('offer-room').value}`, 120, bookingDetailsY);
+
+                // Items Table
+                yPosition = Math.max(yPosition, bookingDetailsY) + 10;
+                const tableStartY = yPosition;
+
+                // Table header
+                doc.setFillColor(40, 167, 69);
+                doc.rect(20, tableStartY, 170, 10, 'F');
+
+                doc.setTextColor(255, 255, 255);
+                doc.setFontSize(9);
+                doc.text('Pos.', 25, tableStartY + 7);
+                doc.text('Beschreibung', 40, tableStartY + 7);
+                doc.text('Menge', 110, tableStartY + 7);
+                doc.text('Einzelpreis', 130, tableStartY + 7);
+                doc.text('MwSt.%', 150, tableStartY + 7);
+                doc.text('Gesamtpreis', 165, tableStartY + 7);
+
+                // Table items
+                yPosition = tableStartY + 15;
+                doc.setTextColor(0, 0, 0);
+
+                currentOfferItems.forEach((item, index) => {
+                    const itemTotal = item.quantity * item.unitPrice;
+                    const taxRate = item.taxRate ?? 10;
+
+                    doc.setFontSize(9);
+                    doc.text(`${index + 1}`, 25, yPosition);
+
+                    const description = item.description || '';
+                    const maxDescriptionWidth = 65;
+                    const descriptionLines = doc.splitTextToSize(description, maxDescriptionWidth);
+                    doc.text(descriptionLines, 40, yPosition);
+
+                    doc.text(`${item.quantity}`, 112, yPosition);
+                    doc.text(`€${item.unitPrice.toFixed(2)}`, 132, yPosition);
+                    doc.text(`${taxRate}%`, 152, yPosition);
+                    doc.text(`€${itemTotal.toFixed(2)}`, 167, yPosition);
+
+                    yPosition += Math.max(5, descriptionLines.length * 5);
+                });
+
+                // Add line below items
+                yPosition += 3;
+                doc.line(20, yPosition, 190, yPosition);
+
+                // Totals
+                let netSubtotal = 0;
+                let totalTaxAmount = 0;
+                let grossTotal = 0;
+                const taxBreakdown = new Map();
+
+                currentOfferItems.forEach(item => {
+                    const grossItemTotal = item.quantity * item.unitPrice;
+                    const taxRate = item.taxRate ?? 10;
+                    const netItemTotal = grossItemTotal / (1 + taxRate / 100);
+                    const itemTaxAmount = grossItemTotal - netItemTotal;
+
+                    netSubtotal += netItemTotal;
+                    totalTaxAmount += itemTaxAmount;
+                    grossTotal += grossItemTotal;
+
+                    const taxKey = taxRate.toFixed(1);
+                    if (!taxBreakdown.has(taxKey)) {
+                        taxBreakdown.set(taxKey, { subtotal: 0, tax: 0 });
+                    }
+                    taxBreakdown.get(taxKey).subtotal += netItemTotal;
+                    taxBreakdown.get(taxKey).tax += itemTaxAmount;
+                });
+
+                yPosition += 8;
+                doc.text('Zwischensumme:', 140, yPosition);
+                doc.text(`€${netSubtotal.toFixed(2)}`, 175, yPosition);
+
+                yPosition += 8;
+                if (taxBreakdown.size === 1) {
+                    const [taxRate] = taxBreakdown.keys();
+                    doc.text(`MwSt. (${taxRate}%):`, 140, yPosition);
+                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
+                } else {
+                    doc.text('MwSt.:', 140, yPosition);
+                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
+                    yPosition += 5;
+                    doc.setFontSize(8);
+                    for (const [taxRate, breakdown] of taxBreakdown) {
+                        yPosition += 4;
+                        doc.text(`  ${taxRate}%: €${breakdown.tax.toFixed(2)}`, 140, yPosition);
+                    }
+                    doc.setFontSize(10);
+                }
+
+                yPosition += 8;
+                doc.line(140, yPosition, 190, yPosition);
+
+                yPosition += 10;
+                doc.setFontSize(12);
+                doc.setTextColor(40, 167, 69);
+                doc.text('Gesamtbetrag:', 140, yPosition);
+                doc.text(`€${grossTotal.toFixed(2)}`, 175, yPosition);
+
+                // QR Code
+                const qrData = `OPT:${optionNumber}|DATUM:${offerDate}|BETRAG:€${grossTotal.toFixed(2)}`;
+                const qr = new QRious({
+                    value: qrData,
+                    size: 80
+                });
+                doc.addImage(qr.toDataURL(), 'PNG', 20, yPosition - 25, 25, 25);
+
+                // Remarks
+                const remarks = document.getElementById('offer-remarks').value;
+                if (remarks) {
+                    yPosition += 15;
+                    doc.setFontSize(10);
+                    doc.setTextColor(0, 0, 0);
+                    doc.text('Bemerkungen:', 20, yPosition);
+                    yPosition += 5;
+                    const remarksLines = doc.splitTextToSize(remarks, 170);
+                    doc.text(remarksLines, 20, yPosition);
+                    yPosition += remarksLines.length * 5;
+                }
+
+                // Signature field
+                yPosition = Math.max(yPosition + 15, 230);
+                doc.setFontSize(10);
+                doc.setTextColor(0, 0, 0);
+
+                // Customer signature (centered-right)
+                doc.text('Unterschrift Kunde:', 120, yPosition);
+                doc.line(120, yPosition + 15, 190, yPosition + 15);
+                doc.setFontSize(8);
+                doc.text('Ort, Datum', 120, yPosition + 20);
+
+                // Footer
+                yPosition = Math.max(yPosition + 25, 250);
+                doc.setFontSize(8);
+                doc.setTextColor(128, 128, 128);
+                doc.text('Wir freuen uns auf Ihre Buchung!', 20, yPosition);
+                doc.text('Diese Optionsbestätigung ist unverbindlich und vorbehaltlich Verfügbarkeit.', 20, yPosition + 5);
+
+                // Legal footer
+                yPosition += 15;
+                let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | ${companyData.name || 'Hotel Verwaltungssystem'}`;
+                if (companyData.manager) {
+                    footerText += ` | Geschäftsführer: ${companyData.manager}`;
+                }
+                if (companyData.register) {
+                    footerText += ` | ${companyData.register}`;
+                }
+                if (companyData.taxNumber) {
+                    footerText += ` | Steuernr: ${companyData.taxNumber}`;
+                }
+                if (companyData.vatId) {
+                    footerText += ` | USt-IdNr: ${companyData.vatId}`;
+                }
+
+                const footerLines = doc.splitTextToSize(footerText, 170);
+                doc.text(footerLines, 20, yPosition);
+
+                // Save PDF
+                const fileName = `Optionsbestaetigung_${optionNumber}_${lastname}.pdf`;
+                doc.save(fileName);
+
+                closeModal('offer-editor-modal');
+                showAlert(`Optionsbestätigung "${fileName}" wurde erfolgreich erstellt und heruntergeladen!`, 'success');
+
+            } catch (error) {
+                console.error('Error generating option confirmation:', error);
+                showAlert('Fehler beim Erstellen der Optionsbestätigung. Bitte versuchen Sie es erneut.', 'danger');
             }
         }
 
