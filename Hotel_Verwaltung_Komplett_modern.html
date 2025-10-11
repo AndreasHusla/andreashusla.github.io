@@ -1527,6 +1527,9 @@
                     <button class="btn btn-outline btn-sm" onclick="openCompanySettings()" title="Firmendaten verwalten">
                         <i class="fas fa-building"></i> Firmendaten
                     </button>
+                    <button class="btn btn-outline btn-sm" onclick="openDocumentConfiguration()" title="Dokumenten-Konfiguration">
+                        <i class="fas fa-cog"></i> Konfiguration
+                    </button>
                 </div>
             </div>
         </div>
@@ -2712,6 +2715,101 @@
                     </button>
                     <input type="file" id="initial-import-input" accept=".json" style="display: none;" onchange="importInitialBackup(event)">
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Document Configuration Modal -->
+    <div id="document-config-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-cog"></i> Dokumenten-Konfiguration</h2>
+                <button class="close" onclick="closeModal('document-config-modal')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="document-config-form">
+                    <!-- Invoice Configuration -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-file-invoice"></i> Rechnung</h3>
+                        <div class="form-group">
+                            <label>Zusatztext für Rechnung:</label>
+                            <textarea id="config-invoice-text" rows="3" placeholder="z.B. Zahlbar innerhalb von 14 Tagen ohne Abzug."></textarea>
+                            <small style="color: #666;">Dieser Text erscheint am Ende der Rechnung.</small>
+                        </div>
+                    </div>
+
+                    <!-- Offer Configuration -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-file-alt"></i> Angebot</h3>
+                        <div class="form-group">
+                            <label>Zusatztext für Angebot:</label>
+                            <textarea id="config-offer-text" rows="3" placeholder="z.B. Dieses Angebot ist freibleibend und gültig bis zum angegebenen Datum."></textarea>
+                            <small style="color: #666;">Dieser Text erscheint am Ende des Angebots.</small>
+                        </div>
+                    </div>
+
+                    <!-- Option Confirmation Configuration -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-file-signature"></i> Optionsbestätigung</h3>
+                        <div class="form-group">
+                            <label>Zusatztext für Optionsbestätigung:</label>
+                            <textarea id="config-option-text" rows="3" placeholder="z.B. Diese Option ist verbindlich und muss bis zum angegebenen Datum bestätigt werden."></textarea>
+                            <small style="color: #666;">Dieser Text erscheint am Ende der Optionsbestätigung.</small>
+                        </div>
+                    </div>
+
+                    <!-- Payment Configuration -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-euro-sign"></i> Zahlungsbedingungen</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Anzahlung (%):</label>
+                                <input type="number" id="config-deposit-percentage" min="0" max="100" step="1" value="0" placeholder="z.B. 30">
+                                <small style="color: #666;">Prozentsatz der Anzahlung (0 = keine Anzahlung erforderlich)</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Zahlungsziel (Tage):</label>
+                                <input type="number" id="config-payment-due-days" min="0" max="365" step="1" value="14" placeholder="z.B. 14">
+                                <small style="color: #666;">Anzahl der Tage bis zur Zahlung</small>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Zahlungshinweis:</label>
+                            <textarea id="config-payment-note" rows="2" placeholder="z.B. Bitte überweisen Sie den Betrag auf das angegebene Konto."></textarea>
+                            <small style="color: #666;">Allgemeiner Hinweis zu Zahlungen</small>
+                        </div>
+                    </div>
+
+                    <!-- Cancellation Policy -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-ban"></i> Stornierungsbedingungen</h3>
+                        <div class="form-group">
+                            <label>Stornierungsbedingungen:</label>
+                            <textarea id="config-cancellation-policy" rows="3" placeholder="z.B. Kostenfreie Stornierung bis 7 Tage vor Anreise. Bei späterer Stornierung werden 80% des Gesamtpreises berechnet."></textarea>
+                            <small style="color: #666;">Informationen zur Stornierung</small>
+                        </div>
+                    </div>
+
+                    <!-- General Terms -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-file-contract"></i> Allgemeine Hinweise</h3>
+                        <div class="form-group">
+                            <label>Allgemeine Geschäftsbedingungen (Link oder Text):</label>
+                            <textarea id="config-terms" rows="2" placeholder="z.B. Es gelten unsere AGB. Einsehbar unter: www.hotel.example.com/agb"></textarea>
+                            <small style="color: #666;">Hinweis auf AGB oder kurze Bedingungen</small>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="saveDocumentConfiguration()">
+                    <i class="fas fa-save"></i> Speichern
+                </button>
+                <button class="btn btn-outline" onclick="closeModal('document-config-modal')">
+                    <i class="fas fa-times"></i> Abbrechen
+                </button>
             </div>
         </div>
     </div>
@@ -4419,6 +4517,72 @@
             saveCompanyData();
             closeModal('company-settings-modal');
             showAlert('Firmendaten wurden erfolgreich gespeichert!', 'success');
+        }
+
+        // Document Configuration Management
+        let documentConfig = {
+            invoiceText: '',
+            offerText: '',
+            optionText: '',
+            depositPercentage: 0,
+            paymentDueDays: 14,
+            paymentNote: '',
+            cancellationPolicy: '',
+            terms: ''
+        };
+
+        function loadDocumentConfiguration() {
+            try {
+                const saved = localStorage.getItem('hotelDocumentConfig');
+                if (saved) {
+                    documentConfig = { ...documentConfig, ...JSON.parse(saved) };
+                }
+            } catch (error) {
+                console.error('Error loading document configuration:', error);
+            }
+        }
+
+        function saveDocumentConfigData() {
+            try {
+                localStorage.setItem('hotelDocumentConfig', JSON.stringify(documentConfig));
+            } catch (error) {
+                console.error('Error saving document configuration:', error);
+            }
+        }
+
+        function openDocumentConfiguration() {
+            loadDocumentConfiguration();
+
+            // Fill form with current configuration
+            document.getElementById('config-invoice-text').value = documentConfig.invoiceText || '';
+            document.getElementById('config-offer-text').value = documentConfig.offerText || '';
+            document.getElementById('config-option-text').value = documentConfig.optionText || '';
+            document.getElementById('config-deposit-percentage').value = documentConfig.depositPercentage || 0;
+            document.getElementById('config-payment-due-days').value = documentConfig.paymentDueDays || 14;
+            document.getElementById('config-payment-note').value = documentConfig.paymentNote || '';
+            document.getElementById('config-cancellation-policy').value = documentConfig.cancellationPolicy || '';
+            document.getElementById('config-terms').value = documentConfig.terms || '';
+
+            // Show modal
+            document.getElementById('document-config-modal').style.display = 'block';
+        }
+
+        function saveDocumentConfiguration() {
+            // Update configuration object
+            documentConfig = {
+                invoiceText: document.getElementById('config-invoice-text').value,
+                offerText: document.getElementById('config-offer-text').value,
+                optionText: document.getElementById('config-option-text').value,
+                depositPercentage: parseFloat(document.getElementById('config-deposit-percentage').value) || 0,
+                paymentDueDays: parseInt(document.getElementById('config-payment-due-days').value) || 14,
+                paymentNote: document.getElementById('config-payment-note').value,
+                cancellationPolicy: document.getElementById('config-cancellation-policy').value,
+                terms: document.getElementById('config-terms').value
+            };
+
+            saveDocumentConfigData();
+            closeModal('document-config-modal');
+            showAlert('Dokumenten-Konfiguration wurde erfolgreich gespeichert!', 'success');
         }
 
         // Advanced Invoice Editor
@@ -6371,11 +6535,13 @@
 
         function exportBackup() {
             loadCompanyData(); // Load current company data
+            loadDocumentConfiguration(); // Load current document configuration
             const backupData = {
                 rooms: rooms,
                 bookings: bookings,
                 guests: guests,
                 companyData: companyData,
+                documentConfig: documentConfig,
                 exportDate: new Date().toISOString(),
                 version: '1.0'
             };
@@ -6421,6 +6587,12 @@
                             if (backupData.companyData) {
                                 companyData = backupData.companyData;
                                 saveCompanyData();
+                            }
+
+                            // Import document configuration if available
+                            if (backupData.documentConfig) {
+                                documentConfig = backupData.documentConfig;
+                                saveDocumentConfigData();
                             }
 
                             saveToLocalStorage();
