@@ -2906,6 +2906,18 @@
                         </div>
                     </div>
 
+                    <!-- System Configuration -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-building"></i> System-Einstellungen</h3>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Anzahl Zimmer im System:</label>
+                                <input type="number" id="config-room-count" min="1" max="100" step="1" value="25" placeholder="z.B. 25">
+                                <small style="color: #666;">Achtung: Eine Änderung setzt alle Zimmer und Buchungen zurück!</small>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Payment Configuration -->
                     <div class="form-section">
                         <h3><i class="fas fa-euro-sign"></i> Zahlungsbedingungen</h3>
@@ -3303,16 +3315,20 @@
             const existingRooms = localStorage.getItem('hotelRooms');
             const migrationFlag = localStorage.getItem('roomNumberMigrated');
             const namesMigrationFlag = localStorage.getItem('roomNamesMigrated');
-            
+
+            // Load document config to get room count
+            loadDocumentConfiguration();
+            const roomCount = documentConfig.roomCount || 25;
+
             if (!existingRooms || !migrationFlag) {
-                // Initialize with new room structure (01-25)
-                for (let i = 1; i <= 25; i++) {
+                // Initialize with new room structure
+                for (let i = 1; i <= roomCount; i++) {
                     const roomNumber = String(i).padStart(2, '0');
                     const types = ['Einzelzimmer', 'Doppelzimmer', 'Suite', 'Familienzimmer', 'Apartment'];
                     const prices = [89, 139, 259, 189, 299];
-                    
+
                     const typeIndex = Math.floor((i-1) / 5) % types.length;
-                    
+
                     rooms.push({
                         number: roomNumber,
                         name: '', // Neues Feld für Zimmernamen
@@ -3325,13 +3341,13 @@
                         notes: ''
                     });
                 }
-                
+
                 // Clear old localStorage data and set migration flag
                 localStorage.removeItem('hotelBookings');
                 localStorage.removeItem('hotelGuests');
                 localStorage.setItem('roomNumberMigrated', 'true');
                 localStorage.setItem('roomNamesMigrated', 'true');
-                
+
                 saveToLocalStorage();
             } else if (!namesMigrationFlag) {
                 // Migrate existing rooms to add name field
@@ -4676,7 +4692,8 @@
             paymentDueDays: 14,
             paymentNote: '',
             cancellationPolicy: '',
-            terms: ''
+            terms: '',
+            roomCount: 25
         };
 
         function loadDocumentConfiguration() {
@@ -4705,6 +4722,7 @@
             document.getElementById('config-invoice-text').value = documentConfig.invoiceText || '';
             document.getElementById('config-offer-text').value = documentConfig.offerText || '';
             document.getElementById('config-option-text').value = documentConfig.optionText || '';
+            document.getElementById('config-room-count').value = documentConfig.roomCount || 25;
             document.getElementById('config-deposit-percentage').value = documentConfig.depositPercentage || 0;
             document.getElementById('config-payment-due-days').value = documentConfig.paymentDueDays || 14;
             document.getElementById('config-payment-note').value = documentConfig.paymentNote || '';
@@ -4716,11 +4734,22 @@
         }
 
         function saveDocumentConfiguration() {
+            const newRoomCount = parseInt(document.getElementById('config-room-count').value) || 25;
+            const oldRoomCount = documentConfig.roomCount || 25;
+
+            // Check if room count changed
+            if (newRoomCount !== oldRoomCount) {
+                if (!confirm(`Achtung: Die Anzahl der Zimmer wird von ${oldRoomCount} auf ${newRoomCount} geändert.\n\nDies wird ALLE Zimmer neu initialisieren und ALLE Buchungen löschen!\n\nMöchten Sie wirklich fortfahren?`)) {
+                    return;
+                }
+            }
+
             // Update configuration object
             documentConfig = {
                 invoiceText: document.getElementById('config-invoice-text').value,
                 offerText: document.getElementById('config-offer-text').value,
                 optionText: document.getElementById('config-option-text').value,
+                roomCount: newRoomCount,
                 depositPercentage: parseFloat(document.getElementById('config-deposit-percentage').value) || 0,
                 paymentDueDays: parseInt(document.getElementById('config-payment-due-days').value) || 14,
                 paymentNote: document.getElementById('config-payment-note').value,
@@ -4729,8 +4758,51 @@
             };
 
             saveDocumentConfigData();
+
+            // If room count changed, reinitialize rooms
+            if (newRoomCount !== oldRoomCount) {
+                reinitializeRooms(newRoomCount);
+            }
+
             closeModal('document-config-modal');
             showAlert('Dokumenten-Konfiguration wurde erfolgreich gespeichert!', 'success');
+        }
+
+        function reinitializeRooms(roomCount) {
+            // Clear all data
+            rooms = [];
+            bookings = [];
+
+            // Initialize rooms with new count
+            const types = ['Einzelzimmer', 'Doppelzimmer', 'Suite', 'Familienzimmer', 'Apartment'];
+            const prices = [89, 139, 259, 189, 299];
+
+            for (let i = 1; i <= roomCount; i++) {
+                const roomNumber = String(i).padStart(2, '0');
+                const typeIndex = Math.floor((i-1) / 5) % types.length;
+
+                rooms.push({
+                    number: roomNumber,
+                    name: '',
+                    type: types[typeIndex],
+                    price: prices[typeIndex],
+                    status: 'frei',
+                    guest: '',
+                    checkin: '',
+                    checkout: '',
+                    notes: ''
+                });
+            }
+
+            // Save to localStorage
+            saveToLocalStorage();
+
+            // Refresh displays
+            updateDashboard();
+            renderRooms();
+            renderCalendar();
+
+            showAlert(`System wurde mit ${roomCount} Zimmern neu initialisiert.`, 'info');
         }
 
         // Advanced Invoice Editor
