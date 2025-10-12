@@ -1009,14 +1009,20 @@
         }
 
         .day-cell.today {
+            border: 3px solid #1e40af !important;
+            box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.3) !important;
+        }
+
+        .day-header.today {
+            background: rgba(99, 102, 241, 0.15);
             border: 2px solid var(--primary);
-            background: rgba(99, 102, 241, 0.1);
+            font-weight: bold;
         }
 
         .day-cell.weekend {
             background: rgba(239, 246, 255, 0.7);
         }
-        
+
         .day-header.weekend {
             background: rgba(239, 246, 255, 0.8);
             border-color: rgba(59, 130, 246, 0.2);
@@ -2527,11 +2533,45 @@
                         </div>
                     </div>
 
+                    <!-- Deposit Information -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-euro-sign"></i> Anzahlung</h3>
+                        <div class="form-group">
+                            <label style="display: flex; align-items: center; gap: 10px;">
+                                <input type="checkbox" id="offer-include-deposit" onchange="updateOfferDepositDisplay()">
+                                <span>Anzahlung auf Optionsbestätigung anzeigen</span>
+                            </label>
+                            <small style="color: #666;">Wenn aktiviert, wird die Anzahlung auf der Optionsbestätigung angezeigt (gerundet auf volle 100€).</small>
+                        </div>
+                        <div id="offer-deposit-info" style="display: none; margin-top: 10px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-radius: 5px;">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                                <span>Anzahlung (<span id="offer-deposit-percentage">0</span>%):</span>
+                                <span id="offer-deposit-amount" style="font-weight: bold;">€0.00</span>
+                            </div>
+                            <small style="color: #666;">Gerundet auf volle 100€ (unter 50€ ab, ab 50€ auf)</small>
+                        </div>
+                    </div>
+
                     <!-- Remarks -->
                     <div class="form-section">
                         <h3><i class="fas fa-sticky-note"></i> Bemerkungen</h3>
                         <div class="form-group">
                             <textarea id="offer-remarks" rows="3" placeholder="Zusätzliche Bemerkungen zum Angebot..."></textarea>
+                        </div>
+                    </div>
+
+                    <!-- Additional Texts from Configuration -->
+                    <div class="form-section">
+                        <h3><i class="fas fa-file-text"></i> Zusatztexte für PDF</h3>
+                        <div class="form-group">
+                            <label>Zusatztext für Angebot (wird auf Seite 2 des PDFs ausgegeben):</label>
+                            <textarea id="offer-additional-text" rows="4" placeholder="Dieser Text wird aus der Konfiguration geladen und kann hier angepasst werden..."></textarea>
+                            <small style="color: #666;">Dieser Text erscheint auf einer separaten Seite im Angebots-PDF.</small>
+                        </div>
+                        <div class="form-group">
+                            <label>Zusatztext für Optionsbestätigung (wird auf Seite 2 des PDFs ausgegeben):</label>
+                            <textarea id="offer-option-text" rows="4" placeholder="Dieser Text wird aus der Konfiguration geladen und kann hier angepasst werden..."></textarea>
+                            <small style="color: #666;">Dieser Text erscheint auf einer separaten Seite im Optionsbestätigungs-PDF.</small>
                         </div>
                     </div>
                 </form>
@@ -5107,6 +5147,11 @@
             // Set remarks
             document.getElementById('offer-remarks').value = booking.remarks || '';
 
+            // Load configuration texts
+            loadDocumentConfiguration();
+            document.getElementById('offer-additional-text').value = documentConfig.offerText || '';
+            document.getElementById('offer-option-text').value = documentConfig.optionText || '';
+
             // Add default accommodation item
             const checkinDate = new Date(booking.checkin);
             const checkoutDate = new Date(booking.checkout);
@@ -5206,6 +5251,49 @@
             document.getElementById('offer-subtotal').textContent = `€${netSubtotal.toFixed(2)}`;
             document.getElementById('offer-tax').textContent = `€${totalTaxAmount.toFixed(2)}`;
             document.getElementById('offer-total').textContent = `€${grossTotal.toFixed(2)}`;
+
+            // Update deposit display
+            updateOfferDepositDisplay();
+        }
+
+        function roundDepositTo100(amount) {
+            // Calculate remainder when dividing by 100
+            const remainder = amount % 100;
+
+            if (remainder < 50) {
+                // Round down
+                return Math.floor(amount / 100) * 100;
+            } else {
+                // Round up
+                return Math.ceil(amount / 100) * 100;
+            }
+        }
+
+        function updateOfferDepositDisplay() {
+            const includeDeposit = document.getElementById('offer-include-deposit').checked;
+            const depositInfo = document.getElementById('offer-deposit-info');
+
+            if (includeDeposit) {
+                depositInfo.style.display = 'block';
+
+                // Get total amount
+                const totalText = document.getElementById('offer-total').textContent;
+                const total = parseFloat(totalText.replace('€', '').replace(',', '.')) || 0;
+
+                // Load configuration for deposit percentage
+                loadDocumentConfiguration();
+                const depositPercentage = documentConfig.depositPercentage || 0;
+
+                // Calculate deposit
+                const depositAmount = (total * depositPercentage) / 100;
+                const roundedDeposit = roundDepositTo100(depositAmount);
+
+                // Update display
+                document.getElementById('offer-deposit-percentage').textContent = depositPercentage;
+                document.getElementById('offer-deposit-amount').textContent = `€${roundedDeposit.toFixed(2)}`;
+            } else {
+                depositInfo.style.display = 'none';
+            }
         }
 
         function generateAdvancedOffer() {
@@ -5447,14 +5535,6 @@
                 doc.text('Gesamtbetrag:', 140, yPosition);
                 doc.text(`€${grossTotal.toFixed(2)}`, 175, yPosition);
 
-                // QR Code
-                const qrData = `ANG:${offerNumber}|DATUM:${offerDate}|BETRAG:€${grossTotal.toFixed(2)}`;
-                const qr = new QRious({
-                    value: qrData,
-                    size: 80
-                });
-                doc.addImage(qr.toDataURL(), 'PNG', 20, yPosition - 25, 25, 25);
-
                 // Remarks
                 const remarks = document.getElementById('offer-remarks').value;
                 if (remarks) {
@@ -5493,6 +5573,33 @@
 
                 const footerLines = doc.splitTextToSize(footerText, 170);
                 doc.text(footerLines, 20, yPosition);
+
+                // Add second page with additional text if available
+                const additionalText = document.getElementById('offer-additional-text').value;
+                if (additionalText && additionalText.trim() !== '') {
+                    doc.addPage();
+                    yPosition = 20;
+
+                    // Page header
+                    doc.setFontSize(14);
+                    doc.setTextColor(40, 167, 69);
+                    doc.text('Weitere Informationen', 20, yPosition);
+
+                    yPosition += 10;
+                    doc.setFontSize(10);
+                    doc.setTextColor(0, 0, 0);
+
+                    // Add additional text
+                    const textLines = doc.splitTextToSize(additionalText, 170);
+                    doc.text(textLines, 20, yPosition);
+
+                    // Footer on second page
+                    yPosition = 280;
+                    doc.setFontSize(8);
+                    doc.setTextColor(128, 128, 128);
+                    const page2FooterLines = doc.splitTextToSize(footerText, 170);
+                    doc.text(page2FooterLines, 20, yPosition);
+                }
 
                 // Save PDF
                 const fileName = `Angebot_${offerNumber}_${lastname}.pdf`;
@@ -5746,13 +5853,24 @@
                 doc.text('Gesamtbetrag:', 140, yPosition);
                 doc.text(`€${grossTotal.toFixed(2)}`, 175, yPosition);
 
-                // QR Code
-                const qrData = `OPT:${optionNumber}|DATUM:${offerDate}|BETRAG:€${grossTotal.toFixed(2)}`;
-                const qr = new QRious({
-                    value: qrData,
-                    size: 80
-                });
-                doc.addImage(qr.toDataURL(), 'PNG', 20, yPosition - 25, 25, 25);
+                // Add deposit if enabled
+                const includeDeposit = document.getElementById('offer-include-deposit').checked;
+                if (includeDeposit) {
+                    yPosition += 10;
+                    doc.line(140, yPosition, 190, yPosition);
+                    yPosition += 10;
+
+                    // Calculate rounded deposit
+                    loadDocumentConfiguration();
+                    const depositPercentage = documentConfig.depositPercentage || 0;
+                    const depositAmount = (grossTotal * depositPercentage) / 100;
+                    const roundedDeposit = roundDepositTo100(depositAmount);
+
+                    doc.setFontSize(12);
+                    doc.setTextColor(40, 167, 69);
+                    doc.text('Anzahlung:', 140, yPosition);
+                    doc.text(`€${roundedDeposit.toFixed(2)}`, 175, yPosition);
+                }
 
                 // Remarks
                 const remarks = document.getElementById('offer-remarks').value;
@@ -5767,19 +5885,8 @@
                     yPosition += remarksLines.length * 5;
                 }
 
-                // Signature field
-                yPosition = Math.max(yPosition + 15, 230);
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-
-                // Customer signature (centered-right)
-                doc.text('Unterschrift Kunde:', 120, yPosition);
-                doc.line(120, yPosition + 15, 190, yPosition + 15);
-                doc.setFontSize(8);
-                doc.text('Ort, Datum', 120, yPosition + 20);
-
                 // Footer
-                yPosition = Math.max(yPosition + 25, 250);
+                yPosition = Math.max(yPosition + 15, 250);
                 doc.setFontSize(8);
                 doc.setTextColor(128, 128, 128);
                 doc.text('Wir freuen uns auf Ihre Buchung!', 20, yPosition);
@@ -5803,6 +5910,33 @@
 
                 const footerLines = doc.splitTextToSize(footerText, 170);
                 doc.text(footerLines, 20, yPosition);
+
+                // Add second page with additional text if available
+                const optionText = document.getElementById('offer-option-text').value;
+                if (optionText && optionText.trim() !== '') {
+                    doc.addPage();
+                    yPosition = 20;
+
+                    // Page header
+                    doc.setFontSize(14);
+                    doc.setTextColor(40, 167, 69);
+                    doc.text('Weitere Informationen', 20, yPosition);
+
+                    yPosition += 10;
+                    doc.setFontSize(10);
+                    doc.setTextColor(0, 0, 0);
+
+                    // Add additional text
+                    const textLines = doc.splitTextToSize(optionText, 170);
+                    doc.text(textLines, 20, yPosition);
+
+                    // Footer on second page
+                    yPosition = 280;
+                    doc.setFontSize(8);
+                    doc.setTextColor(128, 128, 128);
+                    const page2FooterLines = doc.splitTextToSize(footerText, 170);
+                    doc.text(page2FooterLines, 20, yPosition);
+                }
 
                 // Save PDF
                 const fileName = `Optionsbestaetigung_${optionNumber}_${lastname}.pdf`;
