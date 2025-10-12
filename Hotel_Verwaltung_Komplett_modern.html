@@ -1117,7 +1117,54 @@
             opacity: 0.7;
             border-left: 4px solid #6b7280;
         }
-        
+
+        /* Calendar Legend Styles */
+        .calendar-legend {
+            margin-top: 20px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .calendar-legend h3 {
+            margin: 0 0 15px 0;
+            font-size: 1.1rem;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .legend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 12px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .legend-symbol {
+            width: 40px;
+            height: 30px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+
+        .legend-label {
+            font-size: 0.9rem;
+            color: var(--text);
+        }
+
         /* Invoice Editor Styles */
         .invoice-items-container {
             border: 1px solid #e5e7eb;
@@ -1854,6 +1901,45 @@
                                 <!-- Calendar rows will be populated by JavaScript -->
                             </tbody>
                         </table>
+                    </div>
+
+                    <!-- Calendar Legend -->
+                    <div class="calendar-legend">
+                        <h3><i class="fas fa-info-circle"></i> Legende</h3>
+                        <div class="legend-grid">
+                            <div class="legend-item">
+                                <div class="legend-symbol" style="background: rgba(147, 197, 253, 0.3); color: #1e40af; border: 1px dashed #93c5fd;">○</div>
+                                <span class="legend-label">Angebot</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol" style="background: rgba(196, 181, 253, 0.3); color: #6b21a8; border: 1px dashed #c4b5fd;">◐</div>
+                                <span class="legend-label">Option</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol" style="background: #fbbf24; color: white;">●</div>
+                                <span class="legend-label">Reserviert</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol" style="background: #ef4444; color: white;">●</div>
+                                <span class="legend-label">Belegt</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol" style="background: #3b82f6; color: white;">⇩</div>
+                                <span class="legend-label">Check-in</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol" style="background: #f97316; color: white;">⇧</div>
+                                <span class="legend-label">Check-out</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol" style="background: linear-gradient(90deg, #f97316 50%, #3b82f6 50%); color: white;">⇕</div>
+                                <span class="legend-label">Check-out & Check-in</span>
+                            </div>
+                            <div class="legend-item">
+                                <div class="legend-symbol" style="background: #9ca3af; color: white; opacity: 0.7;">●</div>
+                                <span class="legend-label">Abgeschlossen</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
