@@ -1049,6 +1049,18 @@
             color: white;
         }
 
+        .day-cell.status-angebot {
+            background: rgba(147, 197, 253, 0.3);
+            color: #1e40af;
+            border: 1px dashed #93c5fd;
+        }
+
+        .day-cell.status-option {
+            background: rgba(196, 181, 253, 0.3);
+            color: #6b21a8;
+            border: 1px dashed #c4b5fd;
+        }
+
         .day-cell.status-belegt {
             background: var(--danger);
             color: white;
@@ -1863,6 +1875,12 @@
                             <button class="btn btn-outline active" onclick="filterBookingsByStatus('alle')">
                                 <i class="fas fa-th"></i> Alle
                             </button>
+                            <button class="btn btn-outline" onclick="filterBookingsByStatus('Angebot')" style="background: rgba(147, 197, 253, 0.3); color: #1e40af; border-color: #93c5fd;">
+                                <i class="fas fa-file-alt"></i> Angebot
+                            </button>
+                            <button class="btn btn-outline" onclick="filterBookingsByStatus('Option')" style="background: rgba(196, 181, 253, 0.3); color: #6b21a8; border-color: #c4b5fd;">
+                                <i class="fas fa-file-signature"></i> Option
+                            </button>
                             <button class="btn btn-success" onclick="filterBookingsByStatus('Reserviert')">
                                 <i class="fas fa-calendar-check"></i> Reserviert
                             </button>
@@ -2047,6 +2065,8 @@
                         <div class="form-group">
                             <label>Status</label>
                             <select class="form-select" id="edit-booking-status">
+                                <option value="Angebot">Angebot</option>
+                                <option value="Option">Option</option>
                                 <option value="Reserviert">Reserviert</option>
                                 <option value="Aktiv">Aktiv</option>
                                 <option value="Abgeschlossen">Abgeschlossen</option>
@@ -3475,6 +3495,8 @@
         function getStatusSymbol(status) {
             switch (status) {
                 case 'frei': return '●';
+                case 'angebot': return '○';
+                case 'option': return '◐';
                 case 'belegt': return '●';
                 case 'reserviert': return '●';
                 case 'wartung': return '🔧';
@@ -6355,10 +6377,9 @@
                     cell.onclick = function(event) {
                         event.preventDefault();
                         event.stopPropagation();
-                        
+
                         try {
-                            console.log('CLICK: Attempting to call showDayDetails');
-                            showDayDetails(room, dateStr, status);  // Pass the complete room object!
+                            showDayDetails(room, dateStr, status);
                         } catch (error) {
                             console.error('CLICK ERROR:', error);
                             alert('Fehler beim Öffnen der Zimmer-Details: ' + error.message);
@@ -6465,15 +6486,22 @@
             // Normale Buchung prüfen (zwischen Check-in und Check-out)
             // Erst aktive/reservierte Buchungen prüfen
             const activeBooking = bookings.find(b => {
-                return b.room === room.number && 
-                       b.checkin < dateStr && 
-                       b.checkout > dateStr && 
-                       b.status !== 'Storniert' && 
+                return b.room === room.number &&
+                       b.checkin < dateStr &&
+                       b.checkout > dateStr &&
+                       b.status !== 'Storniert' &&
                        b.status !== 'Abgeschlossen';
             });
-            
+
             if (activeBooking) {
-                const status = activeBooking.status === 'Aktiv' ? 'belegt' : 'reserviert';
+                let status = 'reserviert';
+                if (activeBooking.status === 'Aktiv') {
+                    status = 'belegt';
+                } else if (activeBooking.status === 'Angebot') {
+                    status = 'angebot';
+                } else if (activeBooking.status === 'Option') {
+                    status = 'option';
+                }
                 return { status: status, guest: `${activeBooking.firstname} ${activeBooking.lastname}` };
             }
             
@@ -6497,22 +6525,25 @@
 
         function showDayDetails(room, dateStr, status) {
             console.log('DEBUG: showDayDetails called with room object:', room);
-            
+            console.log('DEBUG: dateStr:', dateStr, 'status:', status);
+
             const date = new Date(dateStr);
             const formattedDate = date.toLocaleDateString('de-DE');
-            
+
             // Modal-Titel setzen
             document.getElementById('calendar-modal-title').textContent = `Zimmer ${room.number} - ${formattedDate}`;
-            
+
             // Modal-Inhalt erstellen
             let actionsHtml = '';
             try {
+                console.log('DEBUG: Calling getStatusActions with:', room.number, dateStr, status);
                 actionsHtml = getStatusActions(room.number, dateStr, status);
+                console.log('DEBUG: actionsHtml result:', actionsHtml);
             } catch (error) {
                 console.error('Error in getStatusActions:', error);
                 actionsHtml = `<p class="text-red-500">Fehler beim Laden der Aktionen: ${error.message}</p>`;
             }
-            
+
             let content = `
                 <div class="mb-4">
                     <p><strong>Zimmerart:</strong> ${room.type || 'Standard'}</p>
@@ -6524,7 +6555,7 @@
                     ${actionsHtml}
                 </div>
             `;
-            
+
             document.getElementById('calendar-modal-content').innerHTML = content;
             document.getElementById('calendar-detail-modal').style.display = 'block';
         }
@@ -6532,6 +6563,8 @@
         function getStatusText(status) {
             switch (status) {
                 case 'frei': return 'Frei';
+                case 'angebot': return 'Angebot';
+                case 'option': return 'Option';
                 case 'belegt': return 'Belegt';
                 case 'reserviert': return 'Reserviert';
                 case 'wartung': return 'Wartung';
@@ -6548,7 +6581,7 @@
 
         function getStatusActions(roomNumber, dateStr, status) {
             let actions = '';
-            
+
             if (status.status === 'frei') {
                 actions = `<button class="btn btn-primary" onclick="createBookingFromCalendar('${roomNumber}', '${dateStr}')">
                     <i class="fas fa-plus"></i> Neue Buchung erstellen
@@ -6584,16 +6617,18 @@
                         </button>
                     `;
                 }
-            } else if (status.status === 'belegt' || status.status === 'reserviert') {
+            } else if (status.status === 'belegt' || status.status === 'reserviert' || status.status === 'angebot' || status.status === 'option') {
                 // Finde die Buchung für dieses Zimmer und Datum
-                const booking = bookings.find(b => 
-                    b.room === roomNumber && 
-                    b.checkin <= dateStr && 
-                    b.checkout > dateStr && 
-                    b.status !== 'Storniert' && 
+                const booking = bookings.find(b =>
+                    b.room === roomNumber &&
+                    b.checkin <= dateStr &&
+                    b.checkout > dateStr &&
+                    b.status !== 'Storniert' &&
                     b.status !== 'Abgeschlossen'
                 );
-                
+
+                console.log('DEBUG getStatusActions - status:', status.status, 'booking found:', booking);
+
                 if (booking) {
                     actions = `
                         <div class="mb-2">
@@ -6609,6 +6644,9 @@
                             </div>
                         </div>
                     `;
+                } else {
+                    console.warn('DEBUG: Booking not found for room', roomNumber, 'date', dateStr, 'status', status.status);
+                    console.log('Available bookings:', bookings.filter(b => b.room === roomNumber));
                 }
             }
             
@@ -6914,11 +6952,11 @@
             `;
             
             // Action buttons based on status
-            if (status.status === 'belegt' || status.status === 'reserviert') {
+            if (status.status === 'belegt' || status.status === 'reserviert' || status.status === 'angebot' || status.status === 'option') {
                 // Find booking
-                const booking = bookings.find(b => 
-                    b.room === room.number && 
-                    b.checkin <= dateStr && 
+                const booking = bookings.find(b =>
+                    b.room === room.number &&
+                    b.checkin <= dateStr &&
                     b.checkout > dateStr &&
                     b.status !== 'Storniert'
                 );
