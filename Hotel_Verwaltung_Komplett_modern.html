@@ -5956,174 +5956,6 @@ Based on jsqrencode | (C) 2010 tz@execpc.com | GPL v3 License
         // ======================================================================
 
         // Invoice generation function
-        function generateInvoice(bookingId) {
-            try {
-                const booking = bookings.find(b => b.id === bookingId);
-                if (!booking) {
-                    showAlert('Buchung nicht gefunden!', 'danger');
-                    return;
-                }
-
-                const room = rooms.find(r => r.number === booking.room);
-                if (!room) {
-                    showAlert('Zimmer-Informationen nicht gefunden!', 'danger');
-                    return;
-                }
-
-                // Initialize jsPDF
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                // Set font
-                doc.setFont("helvetica");
-                
-                // Company Header
-                doc.setFontSize(20);
-                doc.setTextColor(99, 102, 241); // Primary color
-                doc.text('Hotel Verwaltung', 20, 25);
-                
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text('Musterstraße 123', 20, 32);
-                doc.text('12345 Musterstadt', 20, 37);
-                doc.text('Tel: +49 (0) 123 456789', 20, 42);
-                doc.text('E-Mail: info@hotel.example.com', 20, 47);
-                
-                // Invoice Title
-                doc.setFontSize(18);
-                doc.setTextColor(99, 102, 241);
-                doc.text('RECHNUNG', 120, 25);
-                
-                // Invoice Details
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text(`Rechnungsnummer: ${booking.id}`, 120, 35);
-                doc.text(`Rechnungsdatum: ${new Date().toLocaleDateString('de-DE')}`, 120, 40);
-                doc.text(`Buchungsnummer: ${booking.id}`, 120, 45);
-                
-                // Customer Details
-                doc.setFontSize(12);
-                doc.setTextColor(99, 102, 241);
-                doc.text('Rechnungsadresse:', 20, 65);
-                
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text(`${booking.firstname} ${booking.lastname}`, 20, 75);
-                if (booking.email) {
-                    doc.text(booking.email, 20, 80);
-                }
-                if (booking.phone) {
-                    doc.text(booking.phone, 20, 85);
-                }
-                
-                // Booking Details Section
-                doc.setFontSize(12);
-                doc.setTextColor(99, 102, 241);
-                doc.text('Buchungsdetails:', 20, 105);
-                
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text(`Check-in: ${formatDate(booking.checkin)}`, 20, 115);
-                doc.text(`Check-out: ${formatDate(booking.checkout)}`, 20, 120);
-                
-                // Calculate nights
-                const checkinDate = new Date(booking.checkin);
-                const checkoutDate = new Date(booking.checkout);
-                const nights = Math.ceil((checkoutDate - checkinDate) / (1000 * 60 * 60 * 24));
-                
-                doc.text(`Anzahl Nächte: ${nights}`, 20, 125);
-                doc.text(`Zimmer: ${booking.room} (${room.category})`, 20, 130);
-                doc.text(`Status: ${booking.status}`, 20, 135);
-                
-                // Invoice Table Header
-                const tableStartY = 155;
-                doc.setFillColor(99, 102, 241);
-                doc.rect(20, tableStartY, 170, 10, 'F');
-                
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(10);
-                doc.text('Position', 25, tableStartY + 7);
-                doc.text('Beschreibung', 60, tableStartY + 7);
-                doc.text('Menge', 120, tableStartY + 7);
-                doc.text('Einzelpreis Brutto', 140, tableStartY + 7);
-                doc.text('Gesamtpreis', 165, tableStartY + 7);
-                
-                // Invoice Items
-                doc.setTextColor(0, 0, 0);
-                let yPosition = tableStartY + 20;
-                
-                // Main accommodation item
-                doc.text('1', 25, yPosition);
-                doc.text(`Übernachtung Zimmer ${booking.room}`, 60, yPosition);
-                doc.text(`${nights}`, 125, yPosition);
-                doc.text(`€${room.price.toFixed(2)}`, 145, yPosition);
-                doc.text(`€${booking.total.toFixed(2)}`, 170, yPosition);
-                
-                // Add line below item
-                yPosition += 5;
-                doc.line(20, yPosition, 190, yPosition);
-                
-                // Totals Section
-                yPosition += 15;
-                doc.setFontSize(10);
-                
-                const subtotal = booking.total;
-                const taxRate = 0.19; // 19% MwSt
-                const taxAmount = subtotal * taxRate;
-                const total = subtotal + taxAmount;
-                
-                // Subtotal
-                doc.text('Zwischensumme:', 140, yPosition);
-                doc.text(`€${subtotal.toFixed(2)}`, 170, yPosition);
-                
-                yPosition += 8;
-                doc.text(`MwSt. (${(taxRate * 100).toFixed(0)}%):`, 140, yPosition);
-                doc.text(`€${taxAmount.toFixed(2)}`, 170, yPosition);
-                
-                yPosition += 8;
-                doc.line(140, yPosition, 190, yPosition);
-                
-                yPosition += 10;
-                doc.setFontSize(12);
-                doc.setTextColor(99, 102, 241);
-                doc.text('Gesamtbetrag:', 140, yPosition);
-                doc.text(`€${total.toFixed(2)}`, 170, yPosition);
-                
-                // Payment Information
-                yPosition += 20;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text('Zahlungsart:', 20, yPosition);
-                doc.text(booking.payment || 'Nicht angegeben', 60, yPosition);
-                
-                if (booking.remarks) {
-                    yPosition += 10;
-                    doc.text('Bemerkungen:', 20, yPosition);
-                    doc.text(booking.remarks, 20, yPosition + 5);
-                }
-                
-                // Footer
-                yPosition = 260;
-                doc.setFontSize(8);
-                doc.setTextColor(128, 128, 128);
-                doc.text('Vielen Dank für Ihren Aufenthalt bei uns!', 20, yPosition);
-                doc.text('Bei Fragen zur Rechnung wenden Sie sich gerne an uns.', 20, yPosition + 5);
-                
-                doc.text(`Erstellt am: ${new Date().toLocaleString('de-DE')}`, 20, yPosition + 15);
-                doc.text(`${companyData.name || 'Hotel Verwaltungssystem'} - Moderne Hotelmanagement-Software`, 20, yPosition + 20);
-                
-                // Save PDF
-                const fileName = `Rechnung_${booking.id}_${booking.lastname}.pdf`;
-                doc.save(fileName);
-                
-                showAlert(`Rechnung "${fileName}" wurde erfolgreich erstellt und heruntergeladen!`, 'success');
-                
-            } catch (error) {
-                console.error('Error generating invoice:', error);
-                showAlert('Fehler beim Erstellen der Rechnung. Bitte versuchen Sie es erneut.', 'danger');
-            }
-        }
-
         // Advanced Invoice Editor
         let currentInvoiceItems = [];
         let invoiceItemCounter = 0;
@@ -6261,339 +6093,463 @@ Based on jsqrencode | (C) 2010 tz@execpc.com | GPL v3 License
         }
 
         function calculateInvoiceTotal() {
-            let netSubtotal = 0;
-            let totalTaxAmount = 0;
-            let grossTotal = 0;
+            const totals = calculateTotals(currentInvoiceItems);
 
-            currentInvoiceItems.forEach(item => {
-                const grossItemTotal = item.quantity * item.unitPrice; // unitPrice ist jetzt Brutto
-                const taxRate = item.taxRate ?? 10;
-                const netItemTotal = grossItemTotal / (1 + taxRate / 100);
-                const itemTaxAmount = grossItemTotal - netItemTotal;
-                
-                netSubtotal += netItemTotal;
-                totalTaxAmount += itemTaxAmount;
-                grossTotal += grossItemTotal;
-            });
-
-            document.getElementById('invoice-subtotal').textContent = `€${netSubtotal.toFixed(2)}`;
-            document.getElementById('invoice-tax').textContent = `€${totalTaxAmount.toFixed(2)}`;
-            document.getElementById('invoice-total').textContent = `€${grossTotal.toFixed(2)}`;
+            document.getElementById('invoice-subtotal').textContent = formatEuro(totals.net);
+            document.getElementById('invoice-tax').textContent = formatEuro(totals.tax);
+            document.getElementById('invoice-total').textContent = formatEuro(totals.gross);
         }
 
-        function generateAdvancedInvoice() {
+        // ---------- Gemeinsame Bausteine für Rechnung, Angebot und Optionsbestätigung ----------
+        const DOC_COLOR_INVOICE = [99, 102, 241];
+        const DOC_COLOR_OFFER = [40, 167, 69];
+
+        function formatEuro(amount) {
+            return `€${amount.toFixed(2)}`;
+        }
+
+        function itemTaxRate(item) {
+            return item.taxRate ?? 10;
+        }
+
+        // Zentrale Berechnung: Einzelpreise sind Brutto; daraus werden Netto, MwSt. und Aufschlüsselung je Steuersatz ermittelt.
+        function calculateTotals(items) {
+            let net = 0;
+            let tax = 0;
+            let gross = 0;
+            const breakdown = new Map(); // Steuersatz (z.B. "10.0") -> { subtotal, tax }
+
+            items.forEach(item => {
+                const grossItem = item.quantity * item.unitPrice;
+                const taxRate = itemTaxRate(item);
+                const netItem = grossItem / (1 + taxRate / 100);
+                const taxItem = grossItem - netItem;
+
+                net += netItem;
+                tax += taxItem;
+                gross += grossItem;
+
+                const key = taxRate.toFixed(1);
+                if (!breakdown.has(key)) breakdown.set(key, { subtotal: 0, tax: 0 });
+                breakdown.get(key).subtotal += netItem;
+                breakdown.get(key).tax += taxItem;
+            });
+
+            return { net, tax, gross, breakdown };
+        }
+
+        // Anzahlung: Prozentsatz aus der Konfiguration, auf volle 100 gerundet
+        function calculateDeposit(total) {
+            loadDocumentConfiguration();
+            const percentage = documentConfig.depositPercentage || 0;
+            return { percentage, amount: roundDepositTo100((total * percentage) / 100) };
+        }
+
+        function roundDepositTo100(amount) {
+            // Calculate remainder when dividing by 100
+            const remainder = amount % 100;
+
+            if (remainder < 50) {
+                // Round down
+                return Math.floor(amount / 100) * 100;
+            } else {
+                // Round up
+                return Math.ceil(amount / 100) * 100;
+            }
+        }
+
+        function createPdfDocument() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFont("helvetica");
+            return doc;
+        }
+
+        // Logo + Firmenkopf links oben; gibt die y-Position nach dem Block zurück
+        function drawLetterhead(doc, color) {
+            let y = 20;
+
+            if (logoDataURL) {
+                try {
+                    const logoImg = document.getElementById('hotel-logo');
+                    const logoWidth = 25;
+                    const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
+                    doc.addImage(logoDataURL, 'PNG', 20, y, logoWidth, logoHeight);
+                    y = Math.max(y + logoHeight + 3, y + 20);
+                } catch (error) {
+                    console.warn('Could not add logo to PDF:', error);
+                    y += 5;
+                }
+            } else {
+                y += 5;
+            }
+
+            y += 5;
+            doc.setFontSize(16);
+            doc.setTextColor(...color);
+            doc.text(companyData.name, 20, y);
+
+            y += 6;
+            if (companyData.subtitle) {
+                doc.setFontSize(12);
+                doc.text(companyData.subtitle, 20, y);
+                y += 7;
+            }
+
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text(companyData.street, 20, y);
+            y += 5;
+            doc.text(companyData.city, 20, y);
+            y += 5;
+            if (companyData.country !== 'Deutschland') {
+                doc.text(companyData.country, 20, y);
+                y += 5;
+            }
+            if (companyData.phone) {
+                doc.text(`Tel: ${companyData.phone}`, 20, y);
+                y += 5;
+            }
+            doc.text(`E-Mail: ${companyData.email}`, 20, y);
+            if (companyData.website) {
+                y += 5;
+                doc.text(`Web: ${companyData.website}`, 20, y);
+            }
+            return y;
+        }
+
+        // Dokumenttitel und Kennzeichen rechts oben
+        function drawTitleBlock(doc, color, title, lines) {
+            doc.setFontSize(18);
+            doc.setTextColor(...color);
+            doc.text(title, 120, 30);
+
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            lines.forEach((line, i) => doc.text(line, 120, 40 + i * 5));
+        }
+
+        // Kundenadresse (links) und Aufenthalt (rechts); liest die Felder des jeweiligen Editors (prefix 'invoice-' / 'offer-')
+        function drawCustomerAndStay(doc, color, y, options) {
+            const field = id => document.getElementById(options.prefix + id).value;
+
+            y = Math.max(y + 10, 60);
+            const customerStartY = y;
+            doc.setFontSize(12);
+            doc.setTextColor(...color);
+            doc.text(options.customerTitle, 20, y);
+
+            y += 10;
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+
+            const firstname = field('firstname');
+            const lastname = field('lastname');
+            doc.text(`${firstname} ${lastname}`, 20, y);
+
+            const address = field('address');
+            if (address) {
+                address.split('\n').forEach(line => {
+                    y += 5;
+                    doc.text(line.trim(), 20, y);
+                });
+            }
+            const email = field('email');
+            if (email) {
+                y += 5;
+                doc.text(email, 20, y);
+            }
+            const phone = field('phone');
+            if (phone) {
+                y += 5;
+                doc.text(phone, 20, y);
+            }
+
+            let stayY = customerStartY;
+            doc.setFontSize(12);
+            doc.setTextColor(...color);
+            doc.text(options.stayTitle, 120, stayY);
+
+            stayY += 10;
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text(`Check-in: ${formatDate(field('checkin'))}`, 120, stayY);
+            stayY += 5;
+            doc.text(`Check-out: ${formatDate(field('checkout'))}`, 120, stayY);
+            stayY += 5;
+            doc.text(`${field('room')}`, 120, stayY);
+
+            return { tableStartY: Math.max(y, stayY) + 10, lastname };
+        }
+
+        // Positionstabelle; gibt die y-Position unter der Abschlusslinie zurück
+        function drawItemsTable(doc, color, items, tableStartY) {
+            doc.setFillColor(...color);
+            doc.rect(20, tableStartY, 170, 10, 'F');
+
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(9);
+            doc.text('Pos.', 25, tableStartY + 7);
+            doc.text('Beschreibung', 40, tableStartY + 7);
+            doc.text('Menge', 110, tableStartY + 7);
+            doc.text('Einzelpreis', 130, tableStartY + 7);
+            doc.text('MwSt.%', 150, tableStartY + 7);
+            doc.text('Gesamtpreis', 165, tableStartY + 7);
+
+            let y = tableStartY + 15;
+            doc.setTextColor(0, 0, 0);
+
+            items.forEach((item, index) => {
+                const itemTotal = item.quantity * item.unitPrice;
+
+                doc.setFontSize(9);
+                doc.text(`${index + 1}`, 25, y);
+
+                const descriptionLines = doc.splitTextToSize(item.description || '', 65);
+                doc.text(descriptionLines, 40, y);
+
+                doc.text(`${item.quantity}`, 112, y);
+                doc.text(formatEuro(item.unitPrice), 132, y);
+                doc.text(`${itemTaxRate(item)}%`, 152, y);
+                doc.text(formatEuro(itemTotal), 167, y);
+
+                y += Math.max(5, descriptionLines.length * 5);
+            });
+
+            y += 3;
+            doc.line(20, y, 190, y);
+            return y;
+        }
+
+        // Zwischensumme, MwSt. (ggf. je Steuersatz) und Gesamtbetrag; gibt die y-Position der Gesamtbetrag-Zeile zurück
+        function drawTotals(doc, color, totals, y) {
+            y += 8;
+            doc.text('Zwischensumme:', 140, y);
+            doc.text(formatEuro(totals.net), 175, y);
+
+            y += 8;
+            if (totals.breakdown.size === 1) {
+                const [taxRate] = totals.breakdown.keys();
+                doc.text(`MwSt. (${taxRate}%):`, 140, y);
+                doc.text(formatEuro(totals.tax), 175, y);
+            } else {
+                doc.text('MwSt.:', 140, y);
+                doc.text(formatEuro(totals.tax), 175, y);
+                y += 5;
+                doc.setFontSize(8);
+                for (const [taxRate, entry] of totals.breakdown) {
+                    y += 4;
+                    doc.text(`  ${taxRate}%: ${formatEuro(entry.tax)}`, 140, y);
+                }
+                doc.setFontSize(10);
+            }
+
+            y += 8;
+            doc.line(140, y, 190, y);
+
+            y += 10;
+            doc.setFontSize(12);
+            doc.setTextColor(...color);
+            doc.text('Gesamtbetrag:', 140, y);
+            doc.text(formatEuro(totals.gross), 175, y);
+            return y;
+        }
+
+        function drawRemarks(doc, remarks, y) {
+            if (!remarks) return y;
+            y += 15;
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text('Bemerkungen:', 20, y);
+            y += 5;
+            const remarksLines = doc.splitTextToSize(remarks, 170);
+            doc.text(remarksLines, 20, y);
+            return y + remarksLines.length * 5;
+        }
+
+        // Fußzeile mit Schlusssatz und rechtlichen Angaben; gibt den rechtlichen Text zurück (für Folgeseiten)
+        function drawFooter(doc, y, closingLines, gap) {
+            y = Math.max(y + gap, 250);
+            doc.setFontSize(8);
+            doc.setTextColor(128, 128, 128);
+            doc.text(closingLines[0], 20, y);
+            doc.text(closingLines[1], 20, y + 5);
+
+            y += 15;
+            let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | ${companyData.name || 'Hotel Verwaltungssystem'}`;
+            if (companyData.manager) footerText += ` | Geschäftsführer: ${companyData.manager}`;
+            if (companyData.register) footerText += ` | ${companyData.register}`;
+            if (companyData.taxNumber) footerText += ` | Steuernr: ${companyData.taxNumber}`;
+            if (companyData.vatId) footerText += ` | USt-IdNr: ${companyData.vatId}`;
+
+            doc.text(doc.splitTextToSize(footerText, 170), 20, y);
+            return footerText;
+        }
+
+        // Optionale zweite Seite "Weitere Informationen"
+        function drawExtraPage(doc, color, text, footerText) {
+            if (!text || text.trim() === '') return;
+            doc.addPage();
+            let y = 20;
+
+            doc.setFontSize(14);
+            doc.setTextColor(...color);
+            doc.text('Weitere Informationen', 20, y);
+
+            y += 10;
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0);
+            doc.text(doc.splitTextToSize(text, 170), 20, y);
+
+            doc.setFontSize(8);
+            doc.setTextColor(128, 128, 128);
+            doc.text(doc.splitTextToSize(footerText, 170), 20, 280);
+        }
+
+        function finishPdf(doc, fileName, modalId, label) {
+            doc.save(fileName);
+            closeModal(modalId);
+            showAlert(`${label} "${fileName}" wurde erfolgreich erstellt und heruntergeladen!`, 'success');
+        }
+
+        // Rahmen für alle Generatoren: Positionen prüfen, Fehler abfangen
+        function runDocumentGenerator(items, errorTarget, build) {
             try {
-                if (currentInvoiceItems.length === 0) {
+                if (items.length === 0) {
                     showAlert('Bitte fügen Sie mindestens eine Position hinzu!', 'warning');
                     return;
                 }
+                build();
+            } catch (error) {
+                console.error('Error generating document:', error);
+                showAlert(`Fehler beim Erstellen ${errorTarget}. Bitte versuchen Sie es erneut.`, 'danger');
+            }
+        }
 
+        function generateAdvancedInvoice() {
+            runDocumentGenerator(currentInvoiceItems, 'der Rechnung', () => {
                 const bookingId = document.getElementById('invoice-editor-modal').dataset.bookingId;
-                
-                // Load company data
                 loadCompanyData();
 
-                // Initialize jsPDF
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                // Set font
-                doc.setFont("helvetica");
-                
-                let yPosition = 20;
+                const doc = createPdfDocument();
+                let y = drawLetterhead(doc, DOC_COLOR_INVOICE);
 
-                // Add logo if available
-                if (logoDataURL) {
-                    try {
-                        // Use the pre-converted logo data URL
-                        const logoImg = document.getElementById('hotel-logo');
-                        const logoWidth = 25;
-                        const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
-                        doc.addImage(logoDataURL, 'PNG', 20, yPosition, logoWidth, logoHeight);
-                        yPosition = Math.max(yPosition + logoHeight + 3, yPosition + 20);
-                    } catch (error) {
-                        console.warn('Could not add logo to PDF:', error);
-                        yPosition += 5;
-                    }
-                } else {
-                    yPosition += 5;
-                }
-
-                // Company Header
-                yPosition += 5; // Etwas Abstand zum Logo
-                doc.setFontSize(16);
-                doc.setTextColor(99, 102, 241);
-                doc.text(companyData.name, 20, yPosition);
-                
-                yPosition += 6;
-                if (companyData.subtitle) {
-                    doc.setFontSize(12);
-                    doc.text(companyData.subtitle, 20, yPosition);
-                    yPosition += 7;
-                }
-                
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text(companyData.street, 20, yPosition);
-                yPosition += 5;
-                doc.text(companyData.city, 20, yPosition);
-                yPosition += 5;
-                if (companyData.country !== 'Deutschland') {
-                    doc.text(companyData.country, 20, yPosition);
-                    yPosition += 5;
-                }
-                if (companyData.phone) {
-                    doc.text(`Tel: ${companyData.phone}`, 20, yPosition);
-                    yPosition += 5;
-                }
-                doc.text(`E-Mail: ${companyData.email}`, 20, yPosition);
-                if (companyData.website) {
-                    yPosition += 5;
-                    doc.text(`Web: ${companyData.website}`, 20, yPosition);
-                }
-                
-                // Invoice Title and Details (right side)
-                doc.setFontSize(18);
-                doc.setTextColor(99, 102, 241);
-                doc.text('RECHNUNG', 120, 30);
-                
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
                 const invoiceDate = new Date().toLocaleDateString('de-DE');
-                doc.text(`Rechnungsnummer: ${bookingId}`, 120, 40);
-                doc.text(`Rechnungsdatum: ${invoiceDate}`, 120, 45);
-                doc.text(`Buchungsnummer: ${bookingId}`, 120, 50);
-                
-                
-                // Customer Details
-                yPosition = Math.max(yPosition + 10, 60);
-                const customerStartY = yPosition;
-                doc.setFontSize(12);
-                doc.setTextColor(99, 102, 241);
-                doc.text('Rechnungsadresse:', 20, yPosition);
-                
-                yPosition += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                
-                const firstname = document.getElementById('invoice-firstname').value;
-                const lastname = document.getElementById('invoice-lastname').value;
-                doc.text(`${firstname} ${lastname}`, 20, yPosition);
-                
-                const address = document.getElementById('invoice-address').value;
-                if (address) {
-                    const addressLines = address.split('\n');
-                    addressLines.forEach(line => {
-                        yPosition += 5;
-                        doc.text(line.trim(), 20, yPosition);
-                    });
-                }
-                
-                const email = document.getElementById('invoice-email').value;
-                if (email) {
-                    yPosition += 5;
-                    doc.text(email, 20, yPosition);
-                }
-                
-                const phone = document.getElementById('invoice-phone').value;
-                if (phone) {
-                    yPosition += 5;
-                    doc.text(phone, 20, yPosition);
-                }
-                
-                // Booking Details - rechts neben der Rechnungsadresse
-                let bookingDetailsY = customerStartY;
-                doc.setFontSize(12);
-                doc.setTextColor(99, 102, 241);
-                doc.text('Buchungsdetails:', 120, bookingDetailsY);
-                
-                bookingDetailsY += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                
-                const checkin = document.getElementById('invoice-checkin').value;
-                const checkout = document.getElementById('invoice-checkout').value;
-                doc.text(`Check-in: ${formatDate(checkin)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`Check-out: ${formatDate(checkout)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`${document.getElementById('invoice-room').value}`, 120, bookingDetailsY);
-                
-                // Invoice Items Table - nach dem längeren Block positionieren
-                yPosition = Math.max(yPosition, bookingDetailsY) + 10;
-                const tableStartY = yPosition;
-                
-                // Table header
-                doc.setFillColor(99, 102, 241);
-                doc.rect(20, tableStartY, 170, 10, 'F');
-                
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(9);
-                doc.text('Pos.', 25, tableStartY + 7);
-                doc.text('Beschreibung', 40, tableStartY + 7);
-                doc.text('Menge', 110, tableStartY + 7);
-                doc.text('Einzelpreis', 130, tableStartY + 7);
-                doc.text('MwSt.%', 150, tableStartY + 7);
-                doc.text('Gesamtpreis', 165, tableStartY + 7);
-                
-                // Table items
-                yPosition = tableStartY + 15;
-                doc.setTextColor(0, 0, 0);
-                
-                currentInvoiceItems.forEach((item, index) => {
-                    const itemTotal = item.quantity * item.unitPrice;
-                    const taxRate = item.taxRate ?? 10;
-                    
-                    doc.setFontSize(9);
-                    doc.text(`${index + 1}`, 25, yPosition);
-                    
-                    // Handle long descriptions
-                    const description = item.description || '';
-                    const maxDescriptionWidth = 65;
-                    const descriptionLines = doc.splitTextToSize(description, maxDescriptionWidth);
-                    doc.text(descriptionLines, 40, yPosition);
-                    
-                    doc.text(`${item.quantity}`, 112, yPosition);
-                    doc.text(`€${item.unitPrice.toFixed(2)}`, 132, yPosition);
-                    doc.text(`${taxRate}%`, 152, yPosition);
-                    doc.text(`€${itemTotal.toFixed(2)}`, 167, yPosition);
-                    
-                    yPosition += Math.max(5, descriptionLines.length * 5);
-                });
-                
-                // Add line below items
-                yPosition += 3;
-                doc.line(20, yPosition, 190, yPosition);
-                
-                // Totals with individual tax rates (Brutto-Rechnung)
-                let netSubtotal = 0;
-                let totalTaxAmount = 0;
-                let grossTotal = 0;
-                const taxBreakdown = new Map();
+                drawTitleBlock(doc, DOC_COLOR_INVOICE, 'RECHNUNG', [
+                    `Rechnungsnummer: ${bookingId}`,
+                    `Rechnungsdatum: ${invoiceDate}`,
+                    `Buchungsnummer: ${bookingId}`
+                ]);
 
-                currentInvoiceItems.forEach(item => {
-                    const grossItemTotal = item.quantity * item.unitPrice; // unitPrice ist jetzt Brutto
-                    const taxRate = item.taxRate ?? 10;
-                    const netItemTotal = grossItemTotal / (1 + taxRate / 100);
-                    const itemTaxAmount = grossItemTotal - netItemTotal;
-                    
-                    netSubtotal += netItemTotal;
-                    totalTaxAmount += itemTaxAmount;
-                    grossTotal += grossItemTotal;
-                    
-                    // Group by tax rate for breakdown
-                    const taxKey = taxRate.toFixed(1);
-                    if (!taxBreakdown.has(taxKey)) {
-                        taxBreakdown.set(taxKey, { subtotal: 0, tax: 0 });
-                    }
-                    taxBreakdown.get(taxKey).subtotal += netItemTotal;
-                    taxBreakdown.get(taxKey).tax += itemTaxAmount;
+                const { tableStartY, lastname } = drawCustomerAndStay(doc, DOC_COLOR_INVOICE, y, {
+                    prefix: 'invoice-', customerTitle: 'Rechnungsadresse:', stayTitle: 'Buchungsdetails:'
                 });
-                
-                yPosition += 8;
-                doc.text('Zwischensumme:', 140, yPosition);
-                doc.text(`€${netSubtotal.toFixed(2)}`, 175, yPosition);
-                
-                yPosition += 8;
-                // Show tax breakdown by rate
-                if (taxBreakdown.size === 1) {
-                    const [taxRate] = taxBreakdown.keys();
-                    doc.text(`MwSt. (${taxRate}%):`, 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
-                } else {
-                    doc.text('MwSt.:', 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
-                    yPosition += 5;
-                    doc.setFontSize(8);
-                    for (const [taxRate, breakdown] of taxBreakdown) {
-                        yPosition += 4;
-                        doc.text(`  ${taxRate}%: €${breakdown.tax.toFixed(2)}`, 140, yPosition);
-                    }
-                    doc.setFontSize(10);
-                }
-                
-                yPosition += 8;
-                doc.line(140, yPosition, 190, yPosition);
-                
-                yPosition += 10;
-                doc.setFontSize(12);
-                doc.setTextColor(99, 102, 241);
-                doc.text('Gesamtbetrag:', 140, yPosition);
-                doc.text(`€${grossTotal.toFixed(2)}`, 175, yPosition);
-                
-                // QR Code hinzufügen
-                const qrData = `RG:${bookingId}|DATUM:${invoiceDate}|BETRAG:€${grossTotal.toFixed(2)}`;
+                y = drawItemsTable(doc, DOC_COLOR_INVOICE, currentInvoiceItems, tableStartY);
+
+                const totals = calculateTotals(currentInvoiceItems);
+                y = drawTotals(doc, DOC_COLOR_INVOICE, totals, y);
+
+                // QR-Code
                 const qr = new QRious({
-                    value: qrData,
+                    value: `RG:${bookingId}|DATUM:${invoiceDate}|BETRAG:${formatEuro(totals.gross)}`,
                     size: 80
                 });
-                doc.addImage(qr.toDataURL(), 'PNG', 20, yPosition - 25, 25, 25);
-                
-                // Payment and Remarks  
-                yPosition += 10;
+                doc.addImage(qr.toDataURL(), 'PNG', 20, y - 25, 25, 25);
+
+                // Zahlungsart
+                y += 10;
                 doc.setFontSize(10);
                 doc.setTextColor(0, 0, 0);
-                
-                const payment = document.getElementById('invoice-payment').value;
-                doc.text('Zahlungsart:', 20, yPosition);
-                doc.text(payment, 60, yPosition);
-                
+                doc.text('Zahlungsart:', 20, y);
+                doc.text(document.getElementById('invoice-payment').value, 60, y);
 
-                // Bank details if available
+                // Bankverbindung
                 if (companyData.iban) {
-                    yPosition += 10;
+                    y += 10;
                     doc.setFontSize(9);
                     doc.setTextColor(64, 64, 64);
-                    doc.text('Bankverbindung:', 20, yPosition);
-                    yPosition += 4;
+                    doc.text('Bankverbindung:', 20, y);
+                    y += 4;
                     if (companyData.bank) {
-                        doc.text(`Bank: ${companyData.bank}`, 20, yPosition);
-                        yPosition += 4;
+                        doc.text(`Bank: ${companyData.bank}`, 20, y);
+                        y += 4;
                     }
-                    doc.text(`IBAN: ${companyData.iban}`, 20, yPosition);
+                    doc.text(`IBAN: ${companyData.iban}`, 20, y);
                     if (companyData.bic) {
-                        yPosition += 4;
-                        doc.text(`BIC: ${companyData.bic}`, 20, yPosition);
+                        y += 4;
+                        doc.text(`BIC: ${companyData.bic}`, 20, y);
                     }
                 }
-                
-                // Footer
-                yPosition = Math.max(yPosition + 10, 250);
-                doc.setFontSize(8);
-                doc.setTextColor(128, 128, 128);
-                doc.text('Vielen Dank für Ihren Aufenthalt bei uns!', 20, yPosition);
-                doc.text('Bei Fragen zur Rechnung wenden Sie sich gerne an uns.', 20, yPosition + 5);
-                
-                // Legal footer
-                yPosition += 15;
-                let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | ${companyData.name || 'Hotel Verwaltungssystem'}`;
-                if (companyData.manager) {
-                    footerText += ` | Geschäftsführer: ${companyData.manager}`;
+
+                drawFooter(doc, y, [
+                    'Vielen Dank für Ihren Aufenthalt bei uns!',
+                    'Bei Fragen zur Rechnung wenden Sie sich gerne an uns.'
+                ], 10);
+
+                finishPdf(doc, `Rechnung_${bookingId}_${lastname}.pdf`, 'invoice-editor-modal', 'Rechnung');
+            });
+        }
+
+        // Angebot und Optionsbestätigung unterscheiden sich nur in Beschriftungen, Anzahlung und Zusatztext
+        function generateOfferDocument(cfg) {
+            runDocumentGenerator(currentOfferItems, cfg.errorTarget, () => {
+                const bookingId = document.getElementById('offer-editor-modal').dataset.bookingId;
+                loadCompanyData();
+
+                const doc = createPdfDocument();
+                let y = drawLetterhead(doc, DOC_COLOR_OFFER);
+
+                const documentDate = new Date().toLocaleDateString('de-DE');
+                const documentNumber = `${cfg.numberPrefix}-${bookingId}`;
+                const titleLines = [`${cfg.numberLabel}: ${documentNumber}`, `${cfg.dateLabel}: ${documentDate}`];
+                const validityDate = document.getElementById('offer-validity').value;
+                if (validityDate) titleLines.push(`${cfg.validityLabel}: ${formatDate(validityDate)}`);
+                drawTitleBlock(doc, DOC_COLOR_OFFER, cfg.title, titleLines);
+
+                const { tableStartY, lastname } = drawCustomerAndStay(doc, DOC_COLOR_OFFER, y, {
+                    prefix: 'offer-', customerTitle: 'Kunde:', stayTitle: 'Buchungszeitraum:'
+                });
+                y = drawItemsTable(doc, DOC_COLOR_OFFER, currentOfferItems, tableStartY);
+
+                const totals = calculateTotals(currentOfferItems);
+                y = drawTotals(doc, DOC_COLOR_OFFER, totals, y);
+
+                if (cfg.withDeposit && document.getElementById('offer-include-deposit').checked) {
+                    y += 10;
+                    doc.line(140, y, 190, y);
+                    y += 10;
+
+                    doc.setFontSize(12);
+                    doc.setTextColor(...DOC_COLOR_OFFER);
+                    doc.text('Anzahlung:', 140, y);
+                    doc.text(formatEuro(calculateDeposit(totals.gross).amount), 175, y);
                 }
-                if (companyData.register) {
-                    footerText += ` | ${companyData.register}`;
-                }
-                if (companyData.taxNumber) {
-                    footerText += ` | Steuernr: ${companyData.taxNumber}`;
-                }
-                if (companyData.vatId) {
-                    footerText += ` | USt-IdNr: ${companyData.vatId}`;
-                }
-                
-                const footerLines = doc.splitTextToSize(footerText, 170);
-                doc.text(footerLines, 20, yPosition);
-                
-                // Save PDF
-                const fileName = `Rechnung_${bookingId}_${lastname}.pdf`;
-                doc.save(fileName);
-                
-                closeModal('invoice-editor-modal');
-                showAlert(`Rechnung "${fileName}" wurde erfolgreich erstellt und heruntergeladen!`, 'success');
-                
-            } catch (error) {
-                console.error('Error generating advanced invoice:', error);
-                showAlert('Fehler beim Erstellen der Rechnung. Bitte versuchen Sie es erneut.', 'danger');
-            }
+
+                y = drawRemarks(doc, document.getElementById('offer-remarks').value, y);
+
+                const footerText = drawFooter(doc, y, cfg.closingLines, cfg.footerGap);
+                drawExtraPage(doc, DOC_COLOR_OFFER, document.getElementById(cfg.extraTextId).value, footerText);
+
+                finishPdf(doc, `${cfg.filePrefix}_${documentNumber}_${lastname}.pdf`, 'offer-editor-modal', cfg.label);
+            });
+        }
+
+        function generateAdvancedOffer() {
+            generateOfferDocument({
+                label: 'Angebot', errorTarget: 'des Angebots', title: 'ANGEBOT', filePrefix: 'Angebot',
+                numberPrefix: 'ANG', numberLabel: 'Angebotsnummer', dateLabel: 'Angebotsdatum', validityLabel: 'Gültig bis',
+                closingLines: ['Wir freuen uns auf Ihre Buchung!', 'Dieses Angebot ist unverbindlich und vorbehaltlich Verfügbarkeit.'],
+                footerGap: 10, extraTextId: 'offer-additional-text', withDeposit: false
+            });
+        }
+
+        function generateOptionConfirmation() {
+            generateOfferDocument({
+                label: 'Optionsbestätigung', errorTarget: 'der Optionsbestätigung', title: 'OPTIONSBESTÄTIGUNG', filePrefix: 'Optionsbestaetigung',
+                numberPrefix: 'OPT', numberLabel: 'Optionsnummer', dateLabel: 'Datum', validityLabel: 'Option gültig bis',
+                closingLines: ['Wir freuen uns auf Ihre Buchung!', 'Diese Optionsbestätigung ist unverbindlich und vorbehaltlich Verfügbarkeit.'],
+                footerGap: 15, extraTextId: 'offer-option-text', withDeposit: true
+            });
         }
 
         // Advanced Offer Editor
@@ -6732,40 +6688,14 @@ Based on jsqrencode | (C) 2010 tz@execpc.com | GPL v3 License
         }
 
         function updateOfferTotals() {
-            let netSubtotal = 0;
-            let totalTaxAmount = 0;
-            let grossTotal = 0;
+            const totals = calculateTotals(currentOfferItems);
 
-            currentOfferItems.forEach(item => {
-                const grossItemTotal = item.quantity * item.unitPrice;
-                const taxRate = item.taxRate ?? 10;
-                const netItemTotal = grossItemTotal / (1 + taxRate / 100);
-                const itemTaxAmount = grossItemTotal - netItemTotal;
-
-                netSubtotal += netItemTotal;
-                totalTaxAmount += itemTaxAmount;
-                grossTotal += grossItemTotal;
-            });
-
-            document.getElementById('offer-subtotal').textContent = `€${netSubtotal.toFixed(2)}`;
-            document.getElementById('offer-tax').textContent = `€${totalTaxAmount.toFixed(2)}`;
-            document.getElementById('offer-total').textContent = `€${grossTotal.toFixed(2)}`;
+            document.getElementById('offer-subtotal').textContent = formatEuro(totals.net);
+            document.getElementById('offer-tax').textContent = formatEuro(totals.tax);
+            document.getElementById('offer-total').textContent = formatEuro(totals.gross);
 
             // Update deposit display
             updateOfferDepositDisplay();
-        }
-
-        function roundDepositTo100(amount) {
-            // Calculate remainder when dividing by 100
-            const remainder = amount % 100;
-
-            if (remainder < 50) {
-                // Round down
-                return Math.floor(amount / 100) * 100;
-            } else {
-                // Round up
-                return Math.ceil(amount / 100) * 100;
-            }
         }
 
         function updateOfferDepositDisplay() {
@@ -6779,676 +6709,14 @@ Based on jsqrencode | (C) 2010 tz@execpc.com | GPL v3 License
                 const totalText = document.getElementById('offer-total').textContent;
                 const total = parseFloat(totalText.replace('€', '').replace(',', '.')) || 0;
 
-                // Load configuration for deposit percentage
-                loadDocumentConfiguration();
-                const depositPercentage = documentConfig.depositPercentage || 0;
-
-                // Calculate deposit
-                const depositAmount = (total * depositPercentage) / 100;
-                const roundedDeposit = roundDepositTo100(depositAmount);
-
-                // Update display
-                document.getElementById('offer-deposit-percentage').textContent = depositPercentage;
-                document.getElementById('offer-deposit-amount').textContent = `€${roundedDeposit.toFixed(2)}`;
+                const deposit = calculateDeposit(total);
+                document.getElementById('offer-deposit-percentage').textContent = deposit.percentage;
+                document.getElementById('offer-deposit-amount').textContent = formatEuro(deposit.amount);
             } else {
                 depositInfo.style.display = 'none';
             }
         }
 
-        function generateAdvancedOffer() {
-            try {
-                if (currentOfferItems.length === 0) {
-                    showAlert('Bitte fügen Sie mindestens eine Position hinzu!', 'warning');
-                    return;
-                }
-
-                const bookingId = document.getElementById('offer-editor-modal').dataset.bookingId;
-
-                // Load company data
-                loadCompanyData();
-
-                // Initialize jsPDF
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-
-                doc.setFont("helvetica");
-
-                let yPosition = 20;
-
-                // Add logo if available
-                if (logoDataURL) {
-                    try {
-                        const logoImg = document.getElementById('hotel-logo');
-                        const logoWidth = 25;
-                        const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
-                        doc.addImage(logoDataURL, 'PNG', 20, yPosition, logoWidth, logoHeight);
-                        yPosition = Math.max(yPosition + logoHeight + 3, yPosition + 20);
-                    } catch (error) {
-                        console.warn('Could not add logo to PDF:', error);
-                        yPosition += 5;
-                    }
-                } else {
-                    yPosition += 5;
-                }
-
-                // Company Header
-                yPosition += 5;
-                doc.setFontSize(16);
-                doc.setTextColor(40, 167, 69); // Green color for offer
-                doc.text(companyData.name, 20, yPosition);
-
-                yPosition += 6;
-                if (companyData.subtitle) {
-                    doc.setFontSize(12);
-                    doc.text(companyData.subtitle, 20, yPosition);
-                    yPosition += 7;
-                }
-
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text(companyData.street, 20, yPosition);
-                yPosition += 5;
-                doc.text(companyData.city, 20, yPosition);
-                yPosition += 5;
-                if (companyData.country !== 'Deutschland') {
-                    doc.text(companyData.country, 20, yPosition);
-                    yPosition += 5;
-                }
-                if (companyData.phone) {
-                    doc.text(`Tel: ${companyData.phone}`, 20, yPosition);
-                    yPosition += 5;
-                }
-                doc.text(`E-Mail: ${companyData.email}`, 20, yPosition);
-                if (companyData.website) {
-                    yPosition += 5;
-                    doc.text(`Web: ${companyData.website}`, 20, yPosition);
-                }
-
-                // Offer Title and Details (right side)
-                doc.setFontSize(18);
-                doc.setTextColor(40, 167, 69); // Green color
-                doc.text('ANGEBOT', 120, 30);
-
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                const offerDate = new Date().toLocaleDateString('de-DE');
-                const offerNumber = `ANG-${bookingId}`;
-                doc.text(`Angebotsnummer: ${offerNumber}`, 120, 40);
-                doc.text(`Angebotsdatum: ${offerDate}`, 120, 45);
-
-                const validityDate = document.getElementById('offer-validity').value;
-                if (validityDate) {
-                    doc.text(`Gültig bis: ${formatDate(validityDate)}`, 120, 50);
-                }
-
-                // Customer Details
-                yPosition = Math.max(yPosition + 10, 60);
-                const customerStartY = yPosition;
-                doc.setFontSize(12);
-                doc.setTextColor(40, 167, 69);
-                doc.text('Kunde:', 20, yPosition);
-
-                yPosition += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-
-                const firstname = document.getElementById('offer-firstname').value;
-                const lastname = document.getElementById('offer-lastname').value;
-                doc.text(`${firstname} ${lastname}`, 20, yPosition);
-
-                const address = document.getElementById('offer-address').value;
-                if (address) {
-                    const addressLines = address.split('\n');
-                    addressLines.forEach(line => {
-                        yPosition += 5;
-                        doc.text(line.trim(), 20, yPosition);
-                    });
-                }
-
-                const email = document.getElementById('offer-email').value;
-                if (email) {
-                    yPosition += 5;
-                    doc.text(email, 20, yPosition);
-                }
-
-                const phone = document.getElementById('offer-phone').value;
-                if (phone) {
-                    yPosition += 5;
-                    doc.text(phone, 20, yPosition);
-                }
-
-                // Booking Details
-                let bookingDetailsY = customerStartY;
-                doc.setFontSize(12);
-                doc.setTextColor(40, 167, 69);
-                doc.text('Buchungszeitraum:', 120, bookingDetailsY);
-
-                bookingDetailsY += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-
-                const checkin = document.getElementById('offer-checkin').value;
-                const checkout = document.getElementById('offer-checkout').value;
-                doc.text(`Check-in: ${formatDate(checkin)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`Check-out: ${formatDate(checkout)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`${document.getElementById('offer-room').value}`, 120, bookingDetailsY);
-
-                // Offer Items Table
-                yPosition = Math.max(yPosition, bookingDetailsY) + 10;
-                const tableStartY = yPosition;
-
-                // Table header
-                doc.setFillColor(40, 167, 69);
-                doc.rect(20, tableStartY, 170, 10, 'F');
-
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(9);
-                doc.text('Pos.', 25, tableStartY + 7);
-                doc.text('Beschreibung', 40, tableStartY + 7);
-                doc.text('Menge', 110, tableStartY + 7);
-                doc.text('Einzelpreis', 130, tableStartY + 7);
-                doc.text('MwSt.%', 150, tableStartY + 7);
-                doc.text('Gesamtpreis', 165, tableStartY + 7);
-
-                // Table items
-                yPosition = tableStartY + 15;
-                doc.setTextColor(0, 0, 0);
-
-                currentOfferItems.forEach((item, index) => {
-                    const itemTotal = item.quantity * item.unitPrice;
-                    const taxRate = item.taxRate ?? 10;
-
-                    doc.setFontSize(9);
-                    doc.text(`${index + 1}`, 25, yPosition);
-
-                    const description = item.description || '';
-                    const maxDescriptionWidth = 65;
-                    const descriptionLines = doc.splitTextToSize(description, maxDescriptionWidth);
-                    doc.text(descriptionLines, 40, yPosition);
-
-                    doc.text(`${item.quantity}`, 112, yPosition);
-                    doc.text(`€${item.unitPrice.toFixed(2)}`, 132, yPosition);
-                    doc.text(`${taxRate}%`, 152, yPosition);
-                    doc.text(`€${itemTotal.toFixed(2)}`, 167, yPosition);
-
-                    yPosition += Math.max(5, descriptionLines.length * 5);
-                });
-
-                // Add line below items
-                yPosition += 3;
-                doc.line(20, yPosition, 190, yPosition);
-
-                // Totals
-                let netSubtotal = 0;
-                let totalTaxAmount = 0;
-                let grossTotal = 0;
-                const taxBreakdown = new Map();
-
-                currentOfferItems.forEach(item => {
-                    const grossItemTotal = item.quantity * item.unitPrice;
-                    const taxRate = item.taxRate ?? 10;
-                    const netItemTotal = grossItemTotal / (1 + taxRate / 100);
-                    const itemTaxAmount = grossItemTotal - netItemTotal;
-
-                    netSubtotal += netItemTotal;
-                    totalTaxAmount += itemTaxAmount;
-                    grossTotal += grossItemTotal;
-
-                    const taxKey = taxRate.toFixed(1);
-                    if (!taxBreakdown.has(taxKey)) {
-                        taxBreakdown.set(taxKey, { subtotal: 0, tax: 0 });
-                    }
-                    taxBreakdown.get(taxKey).subtotal += netItemTotal;
-                    taxBreakdown.get(taxKey).tax += itemTaxAmount;
-                });
-
-                yPosition += 8;
-                doc.text('Zwischensumme:', 140, yPosition);
-                doc.text(`€${netSubtotal.toFixed(2)}`, 175, yPosition);
-
-                yPosition += 8;
-                if (taxBreakdown.size === 1) {
-                    const [taxRate] = taxBreakdown.keys();
-                    doc.text(`MwSt. (${taxRate}%):`, 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
-                } else {
-                    doc.text('MwSt.:', 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
-                    yPosition += 5;
-                    doc.setFontSize(8);
-                    for (const [taxRate, breakdown] of taxBreakdown) {
-                        yPosition += 4;
-                        doc.text(`  ${taxRate}%: €${breakdown.tax.toFixed(2)}`, 140, yPosition);
-                    }
-                    doc.setFontSize(10);
-                }
-
-                yPosition += 8;
-                doc.line(140, yPosition, 190, yPosition);
-
-                yPosition += 10;
-                doc.setFontSize(12);
-                doc.setTextColor(40, 167, 69);
-                doc.text('Gesamtbetrag:', 140, yPosition);
-                doc.text(`€${grossTotal.toFixed(2)}`, 175, yPosition);
-
-                // Remarks
-                const remarks = document.getElementById('offer-remarks').value;
-                if (remarks) {
-                    yPosition += 15;
-                    doc.setFontSize(10);
-                    doc.setTextColor(0, 0, 0);
-                    doc.text('Bemerkungen:', 20, yPosition);
-                    yPosition += 5;
-                    const remarksLines = doc.splitTextToSize(remarks, 170);
-                    doc.text(remarksLines, 20, yPosition);
-                    yPosition += remarksLines.length * 5;
-                }
-
-                // Footer
-                yPosition = Math.max(yPosition + 10, 250);
-                doc.setFontSize(8);
-                doc.setTextColor(128, 128, 128);
-                doc.text('Wir freuen uns auf Ihre Buchung!', 20, yPosition);
-                doc.text('Dieses Angebot ist unverbindlich und vorbehaltlich Verfügbarkeit.', 20, yPosition + 5);
-
-                // Legal footer
-                yPosition += 15;
-                let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | ${companyData.name || 'Hotel Verwaltungssystem'}`;
-                if (companyData.manager) {
-                    footerText += ` | Geschäftsführer: ${companyData.manager}`;
-                }
-                if (companyData.register) {
-                    footerText += ` | ${companyData.register}`;
-                }
-                if (companyData.taxNumber) {
-                    footerText += ` | Steuernr: ${companyData.taxNumber}`;
-                }
-                if (companyData.vatId) {
-                    footerText += ` | USt-IdNr: ${companyData.vatId}`;
-                }
-
-                const footerLines = doc.splitTextToSize(footerText, 170);
-                doc.text(footerLines, 20, yPosition);
-
-                // Add second page with additional text if available
-                const additionalText = document.getElementById('offer-additional-text').value;
-                if (additionalText && additionalText.trim() !== '') {
-                    doc.addPage();
-                    yPosition = 20;
-
-                    // Page header
-                    doc.setFontSize(14);
-                    doc.setTextColor(40, 167, 69);
-                    doc.text('Weitere Informationen', 20, yPosition);
-
-                    yPosition += 10;
-                    doc.setFontSize(10);
-                    doc.setTextColor(0, 0, 0);
-
-                    // Add additional text
-                    const textLines = doc.splitTextToSize(additionalText, 170);
-                    doc.text(textLines, 20, yPosition);
-
-                    // Footer on second page
-                    yPosition = 280;
-                    doc.setFontSize(8);
-                    doc.setTextColor(128, 128, 128);
-                    const page2FooterLines = doc.splitTextToSize(footerText, 170);
-                    doc.text(page2FooterLines, 20, yPosition);
-                }
-
-                // Save PDF
-                const fileName = `Angebot_${offerNumber}_${lastname}.pdf`;
-                doc.save(fileName);
-
-                closeModal('offer-editor-modal');
-                showAlert(`Angebot "${fileName}" wurde erfolgreich erstellt und heruntergeladen!`, 'success');
-
-            } catch (error) {
-                console.error('Error generating advanced offer:', error);
-                showAlert('Fehler beim Erstellen des Angebots. Bitte versuchen Sie es erneut.', 'danger');
-            }
-        }
-
-        function generateOptionConfirmation() {
-            try {
-                if (currentOfferItems.length === 0) {
-                    showAlert('Bitte fügen Sie mindestens eine Position hinzu!', 'warning');
-                    return;
-                }
-
-                const bookingId = document.getElementById('offer-editor-modal').dataset.bookingId;
-
-                // Load company data
-                loadCompanyData();
-
-                // Initialize jsPDF
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-
-                doc.setFont("helvetica");
-
-                let yPosition = 20;
-
-                // Add logo if available
-                if (logoDataURL) {
-                    try {
-                        const logoImg = document.getElementById('hotel-logo');
-                        const logoWidth = 25;
-                        const logoHeight = (logoImg.naturalHeight / logoImg.naturalWidth) * logoWidth;
-                        doc.addImage(logoDataURL, 'PNG', 20, yPosition, logoWidth, logoHeight);
-                        yPosition = Math.max(yPosition + logoHeight + 3, yPosition + 20);
-                    } catch (error) {
-                        console.warn('Could not add logo to PDF:', error);
-                        yPosition += 5;
-                    }
-                } else {
-                    yPosition += 5;
-                }
-
-                // Company Header
-                yPosition += 5;
-                doc.setFontSize(16);
-                doc.setTextColor(40, 167, 69); // Green color
-                doc.text(companyData.name, 20, yPosition);
-
-                yPosition += 6;
-                if (companyData.subtitle) {
-                    doc.setFontSize(12);
-                    doc.text(companyData.subtitle, 20, yPosition);
-                    yPosition += 7;
-                }
-
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                doc.text(companyData.street, 20, yPosition);
-                yPosition += 5;
-                doc.text(companyData.city, 20, yPosition);
-                yPosition += 5;
-                if (companyData.country !== 'Deutschland') {
-                    doc.text(companyData.country, 20, yPosition);
-                    yPosition += 5;
-                }
-                if (companyData.phone) {
-                    doc.text(`Tel: ${companyData.phone}`, 20, yPosition);
-                    yPosition += 5;
-                }
-                doc.text(`E-Mail: ${companyData.email}`, 20, yPosition);
-                if (companyData.website) {
-                    yPosition += 5;
-                    doc.text(`Web: ${companyData.website}`, 20, yPosition);
-                }
-
-                // Title and Details (right side)
-                doc.setFontSize(18);
-                doc.setTextColor(40, 167, 69);
-                doc.text('OPTIONSBESTÄTIGUNG', 120, 30);
-
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-                const offerDate = new Date().toLocaleDateString('de-DE');
-                const optionNumber = `OPT-${bookingId}`;
-                doc.text(`Optionsnummer: ${optionNumber}`, 120, 40);
-                doc.text(`Datum: ${offerDate}`, 120, 45);
-
-                const validityDate = document.getElementById('offer-validity').value;
-                if (validityDate) {
-                    doc.text(`Option gültig bis: ${formatDate(validityDate)}`, 120, 50);
-                }
-
-                // Customer Details
-                yPosition = Math.max(yPosition + 10, 60);
-                const customerStartY = yPosition;
-                doc.setFontSize(12);
-                doc.setTextColor(40, 167, 69);
-                doc.text('Kunde:', 20, yPosition);
-
-                yPosition += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-
-                const firstname = document.getElementById('offer-firstname').value;
-                const lastname = document.getElementById('offer-lastname').value;
-                doc.text(`${firstname} ${lastname}`, 20, yPosition);
-
-                const address = document.getElementById('offer-address').value;
-                if (address) {
-                    const addressLines = address.split('\n');
-                    addressLines.forEach(line => {
-                        yPosition += 5;
-                        doc.text(line.trim(), 20, yPosition);
-                    });
-                }
-
-                const email = document.getElementById('offer-email').value;
-                if (email) {
-                    yPosition += 5;
-                    doc.text(email, 20, yPosition);
-                }
-
-                const phone = document.getElementById('offer-phone').value;
-                if (phone) {
-                    yPosition += 5;
-                    doc.text(phone, 20, yPosition);
-                }
-
-                // Booking Details
-                let bookingDetailsY = customerStartY;
-                doc.setFontSize(12);
-                doc.setTextColor(40, 167, 69);
-                doc.text('Buchungszeitraum:', 120, bookingDetailsY);
-
-                bookingDetailsY += 10;
-                doc.setFontSize(10);
-                doc.setTextColor(0, 0, 0);
-
-                const checkin = document.getElementById('offer-checkin').value;
-                const checkout = document.getElementById('offer-checkout').value;
-                doc.text(`Check-in: ${formatDate(checkin)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`Check-out: ${formatDate(checkout)}`, 120, bookingDetailsY);
-                bookingDetailsY += 5;
-                doc.text(`${document.getElementById('offer-room').value}`, 120, bookingDetailsY);
-
-                // Items Table
-                yPosition = Math.max(yPosition, bookingDetailsY) + 10;
-                const tableStartY = yPosition;
-
-                // Table header
-                doc.setFillColor(40, 167, 69);
-                doc.rect(20, tableStartY, 170, 10, 'F');
-
-                doc.setTextColor(255, 255, 255);
-                doc.setFontSize(9);
-                doc.text('Pos.', 25, tableStartY + 7);
-                doc.text('Beschreibung', 40, tableStartY + 7);
-                doc.text('Menge', 110, tableStartY + 7);
-                doc.text('Einzelpreis', 130, tableStartY + 7);
-                doc.text('MwSt.%', 150, tableStartY + 7);
-                doc.text('Gesamtpreis', 165, tableStartY + 7);
-
-                // Table items
-                yPosition = tableStartY + 15;
-                doc.setTextColor(0, 0, 0);
-
-                currentOfferItems.forEach((item, index) => {
-                    const itemTotal = item.quantity * item.unitPrice;
-                    const taxRate = item.taxRate ?? 10;
-
-                    doc.setFontSize(9);
-                    doc.text(`${index + 1}`, 25, yPosition);
-
-                    const description = item.description || '';
-                    const maxDescriptionWidth = 65;
-                    const descriptionLines = doc.splitTextToSize(description, maxDescriptionWidth);
-                    doc.text(descriptionLines, 40, yPosition);
-
-                    doc.text(`${item.quantity}`, 112, yPosition);
-                    doc.text(`€${item.unitPrice.toFixed(2)}`, 132, yPosition);
-                    doc.text(`${taxRate}%`, 152, yPosition);
-                    doc.text(`€${itemTotal.toFixed(2)}`, 167, yPosition);
-
-                    yPosition += Math.max(5, descriptionLines.length * 5);
-                });
-
-                // Add line below items
-                yPosition += 3;
-                doc.line(20, yPosition, 190, yPosition);
-
-                // Totals
-                let netSubtotal = 0;
-                let totalTaxAmount = 0;
-                let grossTotal = 0;
-                const taxBreakdown = new Map();
-
-                currentOfferItems.forEach(item => {
-                    const grossItemTotal = item.quantity * item.unitPrice;
-                    const taxRate = item.taxRate ?? 10;
-                    const netItemTotal = grossItemTotal / (1 + taxRate / 100);
-                    const itemTaxAmount = grossItemTotal - netItemTotal;
-
-                    netSubtotal += netItemTotal;
-                    totalTaxAmount += itemTaxAmount;
-                    grossTotal += grossItemTotal;
-
-                    const taxKey = taxRate.toFixed(1);
-                    if (!taxBreakdown.has(taxKey)) {
-                        taxBreakdown.set(taxKey, { subtotal: 0, tax: 0 });
-                    }
-                    taxBreakdown.get(taxKey).subtotal += netItemTotal;
-                    taxBreakdown.get(taxKey).tax += itemTaxAmount;
-                });
-
-                yPosition += 8;
-                doc.text('Zwischensumme:', 140, yPosition);
-                doc.text(`€${netSubtotal.toFixed(2)}`, 175, yPosition);
-
-                yPosition += 8;
-                if (taxBreakdown.size === 1) {
-                    const [taxRate] = taxBreakdown.keys();
-                    doc.text(`MwSt. (${taxRate}%):`, 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
-                } else {
-                    doc.text('MwSt.:', 140, yPosition);
-                    doc.text(`€${totalTaxAmount.toFixed(2)}`, 175, yPosition);
-                    yPosition += 5;
-                    doc.setFontSize(8);
-                    for (const [taxRate, breakdown] of taxBreakdown) {
-                        yPosition += 4;
-                        doc.text(`  ${taxRate}%: €${breakdown.tax.toFixed(2)}`, 140, yPosition);
-                    }
-                    doc.setFontSize(10);
-                }
-
-                yPosition += 8;
-                doc.line(140, yPosition, 190, yPosition);
-
-                yPosition += 10;
-                doc.setFontSize(12);
-                doc.setTextColor(40, 167, 69);
-                doc.text('Gesamtbetrag:', 140, yPosition);
-                doc.text(`€${grossTotal.toFixed(2)}`, 175, yPosition);
-
-                // Add deposit if enabled
-                const includeDeposit = document.getElementById('offer-include-deposit').checked;
-                if (includeDeposit) {
-                    yPosition += 10;
-                    doc.line(140, yPosition, 190, yPosition);
-                    yPosition += 10;
-
-                    // Calculate rounded deposit
-                    loadDocumentConfiguration();
-                    const depositPercentage = documentConfig.depositPercentage || 0;
-                    const depositAmount = (grossTotal * depositPercentage) / 100;
-                    const roundedDeposit = roundDepositTo100(depositAmount);
-
-                    doc.setFontSize(12);
-                    doc.setTextColor(40, 167, 69);
-                    doc.text('Anzahlung:', 140, yPosition);
-                    doc.text(`€${roundedDeposit.toFixed(2)}`, 175, yPosition);
-                }
-
-                // Remarks
-                const remarks = document.getElementById('offer-remarks').value;
-                if (remarks) {
-                    yPosition += 15;
-                    doc.setFontSize(10);
-                    doc.setTextColor(0, 0, 0);
-                    doc.text('Bemerkungen:', 20, yPosition);
-                    yPosition += 5;
-                    const remarksLines = doc.splitTextToSize(remarks, 170);
-                    doc.text(remarksLines, 20, yPosition);
-                    yPosition += remarksLines.length * 5;
-                }
-
-                // Footer
-                yPosition = Math.max(yPosition + 15, 250);
-                doc.setFontSize(8);
-                doc.setTextColor(128, 128, 128);
-                doc.text('Wir freuen uns auf Ihre Buchung!', 20, yPosition);
-                doc.text('Diese Optionsbestätigung ist unverbindlich und vorbehaltlich Verfügbarkeit.', 20, yPosition + 5);
-
-                // Legal footer
-                yPosition += 15;
-                let footerText = `Erstellt am: ${new Date().toLocaleString('de-DE')} | ${companyData.name || 'Hotel Verwaltungssystem'}`;
-                if (companyData.manager) {
-                    footerText += ` | Geschäftsführer: ${companyData.manager}`;
-                }
-                if (companyData.register) {
-                    footerText += ` | ${companyData.register}`;
-                }
-                if (companyData.taxNumber) {
-                    footerText += ` | Steuernr: ${companyData.taxNumber}`;
-                }
-                if (companyData.vatId) {
-                    footerText += ` | USt-IdNr: ${companyData.vatId}`;
-                }
-
-                const footerLines = doc.splitTextToSize(footerText, 170);
-                doc.text(footerLines, 20, yPosition);
-
-                // Add second page with additional text if available
-                const optionText = document.getElementById('offer-option-text').value;
-                if (optionText && optionText.trim() !== '') {
-                    doc.addPage();
-                    yPosition = 20;
-
-                    // Page header
-                    doc.setFontSize(14);
-                    doc.setTextColor(40, 167, 69);
-                    doc.text('Weitere Informationen', 20, yPosition);
-
-                    yPosition += 10;
-                    doc.setFontSize(10);
-                    doc.setTextColor(0, 0, 0);
-
-                    // Add additional text
-                    const textLines = doc.splitTextToSize(optionText, 170);
-                    doc.text(textLines, 20, yPosition);
-
-                    // Footer on second page
-                    yPosition = 280;
-                    doc.setFontSize(8);
-                    doc.setTextColor(128, 128, 128);
-                    const page2FooterLines = doc.splitTextToSize(footerText, 170);
-                    doc.text(page2FooterLines, 20, yPosition);
-                }
-
-                // Save PDF
-                const fileName = `Optionsbestaetigung_${optionNumber}_${lastname}.pdf`;
-                doc.save(fileName);
-
-                closeModal('offer-editor-modal');
-                showAlert(`Optionsbestätigung "${fileName}" wurde erfolgreich erstellt und heruntergeladen!`, 'success');
-
-            } catch (error) {
-                console.error('Error generating option confirmation:', error);
-                showAlert('Fehler beim Erstellen der Optionsbestätigung. Bitte versuchen Sie es erneut.', 'danger');
-            }
-        }
     </script>
     <script>
         // ======================================================================
