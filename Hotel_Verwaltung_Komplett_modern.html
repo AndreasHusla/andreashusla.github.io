@@ -2981,6 +2981,63 @@
         let currentCalendarYear = new Date().getFullYear();
         let currentSelectedRoom = null;
 
+        // HTML-Escaping für alle Benutzereingaben, die per innerHTML dargestellt werden
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, ch => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+            }[ch]));
+        }
+
+        // Event-Delegation: data-act="funktionsname" data-args='["arg1","arg2"]'
+        // ersetzt Inline-onclick mit eingebetteten Werten (bricht bei Sonderzeichen / ermöglicht Injection).
+        const DELEGATED_ACTIONS = {
+            editBooking: id => editBooking(id),
+            openOfferEditor: id => openOfferEditor(id),
+            openInvoiceEditor: id => openInvoiceEditor(id),
+            cancelBooking: id => cancelBooking(id),
+            deleteBooking: id => deleteBooking(id),
+            editGuest: id => editGuest(id),
+            deleteGuest: id => deleteGuest(id),
+            editBookingFromCalendar: id => editBookingFromCalendar(id),
+            cancelBookingFromCalendar: id => cancelBookingFromCalendar(id),
+            generateInvoiceFromCalendar: id => generateInvoiceFromCalendar(id),
+            createBookingFromCalendar: (room, date) => createBookingFromCalendar(room, date),
+            openOfferEditorFromCalendar: id => { openOfferEditor(id); closeModal('calendar-detail-modal'); }
+        };
+        function act(name, ...args) {
+            return `data-act="${name}" data-args="${escapeHtml(JSON.stringify(args))}"`;
+        }
+        document.addEventListener('click', function(e) {
+            const el = e.target.closest('[data-act]');
+            if (!el) return;
+            const handler = DELEGATED_ACTIONS[el.dataset.act];
+            if (!handler) return;
+            let args = [];
+            try { args = JSON.parse(el.dataset.args || '[]'); } catch (err) { return; }
+            handler(...args);
+        });
+
+        // Eindeutige IDs: höchste vorhandene Nummer + 1 (kollisionsfrei auch nach Löschungen)
+        function generateBookingId() {
+            const prefix = new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-';
+            let max = 0;
+            bookings.forEach(b => {
+                if (typeof b.id === 'string' && b.id.startsWith(prefix)) {
+                    max = Math.max(max, parseInt(b.id.slice(prefix.length), 10) || 0);
+                }
+            });
+            return prefix + String(max + 1).padStart(3, '0');
+        }
+
+        function generateGuestId() {
+            let max = 0;
+            guests.forEach(g => {
+                const m = /^G(\d+)$/.exec(g.id || '');
+                if (m) max = Math.max(max, parseInt(m[1], 10));
+            });
+            return 'G' + String(max + 1).padStart(3, '0');
+        }
+
         // Guest form toggle function - defined early to be available for HTML onchange
         function toggleGuestForm() {
             const existingSelected = document.getElementById('guest-type-existing').checked;
@@ -3049,9 +3106,6 @@
         }
 
         function updateGuestBookingCounts() {
-            console.log('=== updateGuestBookingCounts START ===');
-            console.log('updateGuestBookingCounts called, guests:', guests.length, 'bookings:', bookings.length);
-            console.log('Current guests:', guests.map(g => ({name: g.firstname + ' ' + g.lastname, email: g.email, currentBookings: g.bookings})));
             
             // Reset all guest booking counts
             guests.forEach(guest => {
@@ -3060,12 +3114,10 @@
             
             // Count bookings for each guest (excluding cancelled bookings)
             bookings.forEach(booking => {
-                console.log('Processing booking:', booking.firstname, booking.lastname, booking.email, 'Status:', booking.status);
                 
                 // Fix missing email
                 if (!booking.email) {
                     booking.email = '';
-                    console.log('Fixed missing email for booking:', booking.firstname, booking.lastname);
                 }
                 if (booking.status !== 'Storniert') {
                     const guest = guests.find(g => 
@@ -3075,22 +3127,16 @@
                     );
                     if (guest) {
                         guest.bookings++;
-                        console.log('Found matching guest, incremented count to:', guest.bookings);
                     } else {
-                        console.log('No matching guest found for booking:', booking.firstname, booking.lastname, booking.email);
                     }
                 } else {
-                    console.log('Skipping cancelled booking');
                 }
             });
             
-            console.log('Final guest booking counts:', guests.map(g => ({name: g.firstname + ' ' + g.lastname, bookings: g.bookings})));
-            console.log('=== updateGuestBookingCounts END ===');
         }
 
         // Initial Import Functions
         function startWithSampleData() {
-            console.log('Starting with sample data...');
             
             // Initialize with default data
             initializeRooms();
@@ -3186,12 +3232,10 @@
                 logoImg.onload = function() {
                     this.style.display = 'block';
                     // Skip canvas conversion to avoid CORS issues - we'll handle this differently in PDF
-                    console.log('Logo loaded successfully for display');
                 };
                 logoImg.onerror = function() {
                     this.style.display = 'none';
                     logoDataURL = null;
-                    console.log('Logo file (logo.png) not found - no logo will be displayed');
                 };
                 // Force load check by setting src again
                 logoImg.src = logoImg.src;
@@ -3233,7 +3277,6 @@
                         // Save to localStorage
                         localStorage.setItem('hotelLogoDataURL', logoDataURL);
                         
-                        console.log('Logo loaded as Data URL for PDF usage');
                         showAlert('Logo erfolgreich hochgeladen und für PDFs verfügbar!', 'success');
                     };
                     reader.readAsDataURL(file);
@@ -3311,27 +3354,20 @@
 
         // Initialize rooms
         function initializeRooms() {
-            // Check if rooms already exist in localStorage
-            const existingRooms = localStorage.getItem('hotelRooms');
-            const migrationFlag = localStorage.getItem('roomNumberMigrated');
-            const namesMigrationFlag = localStorage.getItem('roomNamesMigrated');
-
-            // Load document config to get room count
+            // Legt Standardzimmer NUR an, wenn noch keine vorhanden sind.
+            // Bestehende Buchungen/Gäste werden hier niemals gelöscht.
             loadDocumentConfiguration();
             const roomCount = documentConfig.roomCount || 25;
 
-            if (!existingRooms || !migrationFlag) {
-                // Initialize with new room structure
+            if (rooms.length === 0) {
+                const types = ['Einzelzimmer', 'Doppelzimmer', 'Suite', 'Familienzimmer', 'Apartment'];
+                const prices = [89, 139, 259, 189, 299];
+
                 for (let i = 1; i <= roomCount; i++) {
-                    const roomNumber = String(i).padStart(2, '0');
-                    const types = ['Einzelzimmer', 'Doppelzimmer', 'Suite', 'Familienzimmer', 'Apartment'];
-                    const prices = [89, 139, 259, 189, 299];
-
-                    const typeIndex = Math.floor((i-1) / 5) % types.length;
-
+                    const typeIndex = Math.floor((i - 1) / 5) % types.length;
                     rooms.push({
-                        number: roomNumber,
-                        name: '', // Neues Feld für Zimmernamen
+                        number: String(i).padStart(2, '0'),
+                        name: '',
                         type: types[typeIndex],
                         price: prices[typeIndex],
                         status: 'frei',
@@ -3341,29 +3377,17 @@
                         notes: ''
                     });
                 }
-
-                // Clear old localStorage data and set migration flag
-                localStorage.removeItem('hotelBookings');
-                localStorage.removeItem('hotelGuests');
-                localStorage.setItem('roomNumberMigrated', 'true');
-                localStorage.setItem('roomNamesMigrated', 'true');
-
-                saveToLocalStorage();
-            } else if (!namesMigrationFlag) {
-                // Migrate existing rooms to add name field
+            } else {
+                // Ältere Daten: fehlendes Namensfeld ergänzen
                 rooms.forEach(room => {
-                    if (room.name === undefined) {
-                        room.name = '';
-                    }
+                    if (room.name === undefined) room.name = '';
                 });
-                localStorage.setItem('roomNamesMigrated', 'true');
-                saveToLocalStorage();
             }
+
+            saveToLocalStorage();
         }
 
-        // Tab management
         function showTab(tabName, event) {
-            console.log('showTab called with tabName:', tabName, 'event:', event);
             // Hide all tab panes
             const tabPanes = document.querySelectorAll('.tab-pane');
             tabPanes.forEach(pane => pane.classList.remove('active'));
@@ -3376,7 +3400,6 @@
             const targetPane = document.getElementById(tabName);
             if (targetPane) {
                 targetPane.classList.add('active');
-                console.log('Tab pane activated:', tabName);
             } else {
                 console.error('Tab pane not found:', tabName);
             }
@@ -3389,7 +3412,6 @@
                 const targetTab = document.querySelector(`button[onclick*="${tabName}"]`);
                 if (targetTab) {
                     targetTab.classList.add('active');
-                    console.log('Tab button activated for:', tabName);
                 } else {
                     console.error('Tab button not found for:', tabName);
                 }
@@ -3417,7 +3439,7 @@
             const alert = document.createElement('div');
             alert.className = `global-alert global-alert-${type}`;
             alert.innerHTML = `
-                ${message}
+                ${escapeHtml(message)}
                 <button class="alert-close" onclick="removeAlert(this)">
                     <i class="fas fa-times"></i>
                 </button>
@@ -3534,8 +3556,8 @@
                 eventsContainer.innerHTML = upcomingEvents.map(event => `
                     <div class="event-item">
                         <div class="event-date">${formatDateWithWeekday(event.date)}</div>
-                        <div class="event-title">${event.title}</div>
-                        ${event.remarks ? `<div class="event-remarks" style="font-size: 0.85em; color: #666; margin-top: 2px;"><i class="fas fa-sticky-note"></i> ${event.remarks}</div>` : ''}
+                        <div class="event-title">${escapeHtml(event.title)}</div>
+                        ${event.remarks ? `<div class="event-remarks" style="font-size: 0.85em; color: #666; margin-top: 2px;"><i class="fas fa-sticky-note"></i> ${escapeHtml(event.remarks)}</div>` : ''}
                     </div>
                 `).join('');
             }
@@ -3552,14 +3574,14 @@
                 roomCard.onclick = () => showRoomDetails(room);
                 
                 roomCard.innerHTML = `
-                    <div class="room-number">${room.number}</div>
-                    ${room.name ? `<div class="room-name">${room.name}</div>` : ''}
-                    <div class="room-type">${room.type}</div>
+                    <div class="room-number">${escapeHtml(room.number)}</div>
+                    ${room.name ? `<div class="room-name">${escapeHtml(room.name)}</div>` : ''}
+                    <div class="room-type">${escapeHtml(room.type)}</div>
                     <div class="room-status status-${room.status}">
                         <i class="fas fa-${getStatusIcon(room.status)}"></i>
                         ${getStatusText(room.status)}
                     </div>
-                    ${room.guest ? `<div class="room-guest">${room.guest}</div>` : ''}
+                    ${room.guest ? `<div class="room-guest">${escapeHtml(room.guest)}</div>` : ''}
                 `;
                 
                 roomGrid.appendChild(roomCard);
@@ -3578,22 +3600,6 @@
             }
         }
 
-        function getStatusText(status) {
-            switch (status) {
-                case 'frei': return 'Frei';
-                case 'belegt': return 'Belegt';
-                case 'reserviert': return 'Reserviert';
-                case 'wartung': return 'Wartung';
-                case 'checkin': return 'Check-in';
-                case 'checkout': return 'Check-out';
-                case 'belegt_abgeschlossen': return 'Abgeschlossen';
-                case 'checkin_completed': return 'Check-in (Abgeschlossen)';
-                case 'checkout_completed': return 'Check-out (Abgeschlossen)';
-                case 'checkout_checkin_completed': return 'Check-out & Check-in (Abgeschlossen)';
-                default: return status;
-            }
-        }
-        
         function getStatusSymbol(status) {
             switch (status) {
                 case 'frei': return '●';
@@ -3623,7 +3629,7 @@
                     <div class="form-row">
                         <div class="form-group">
                             <label><strong>Zimmername (optional):</strong></label>
-                            <input type="text" id="edit-room-name" class="form-control" placeholder="z.B. Rosenzimmer, Meerblick-Suite" value="${room.name || ''}" maxlength="50">
+                            <input type="text" id="edit-room-name" class="form-control" placeholder="z.B. Rosenzimmer, Meerblick-Suite" value="${escapeHtml(room.name)}" maxlength="50">
                         </div>
                         <div class="form-group">
                             <label><strong>Zimmerart/Kategorie:</strong></label>
@@ -3644,7 +3650,7 @@
                     
                     <div class="form-group">
                         <label><strong>Bemerkungen:</strong></label>
-                        <textarea id="edit-room-notes" class="form-control" rows="2" placeholder="z.B. Meerblick, renoviert, etc.">${room.notes || ''}</textarea>
+                        <textarea id="edit-room-notes" class="form-control" rows="2" placeholder="z.B. Meerblick, renoviert, etc.">${escapeHtml(room.notes)}</textarea>
                     </div>
                 </div>
                 
@@ -3656,7 +3662,7 @@
                     </div>
                     ${room.guest ? `
                         <div class="mt-3">
-                            <strong>Aktueller Gast:</strong> ${room.guest}<br>
+                            <strong>Aktueller Gast:</strong> ${escapeHtml(room.guest)}<br>
                             <strong>Check-in:</strong> ${formatDate(room.checkin)}<br>
                             <strong>Check-out:</strong> ${formatDate(room.checkout)}
                         </div>
@@ -3821,7 +3827,6 @@
         }
 
         function createBooking(event) {
-            console.log('=== createBooking FUNCTION CALLED ===');
             event.preventDefault();
             
             const firstname = document.getElementById('guest-firstname').value;
@@ -3836,11 +3841,8 @@
             const totalPrice = parseFloat(document.getElementById('total-price').value.replace('€ ', ''));
             
             // Double booking protection
-            console.log('Checking for overbooking...');
             const conflictCheck = checkForOverbooking(roomNumber, checkin, checkout);
-            console.log('Conflict check result:', conflictCheck);
             if (conflictCheck.hasConflict) {
-                console.log('CONFLICT DETECTED - returning early');
                 const conflictDetails = conflictCheck.conflictingBookings.map(booking => 
                     `${booking.firstname} ${booking.lastname} (${booking.checkin} - ${booking.checkout})`
                 ).join('\n');
@@ -3852,10 +3854,9 @@
                 return;
             }
             
-            console.log('No conflicts found, proceeding with booking creation...');
             
             // Generate booking ID
-            const bookingId = new Date().toISOString().slice(0, 10).replace(/-/g, '') + '-' + String(bookings.length + 1).padStart(3, '0');
+            const bookingId = generateBookingId();
             
             // Create new booking
             const newBooking = {
@@ -3871,29 +3872,21 @@
                 remarks: remarks
             };
             
-            console.log('Adding booking to array:', newBooking);
             bookings.push(newBooking);
-            console.log('Booking added successfully, total bookings:', bookings.length);
-            console.log('About to update room status...');
             
             // Update room status
             const room = rooms.find(r => r.number === roomNumber);
-            console.log('Found room for update:', room);
             if (room) {
                 room.status = 'reserviert';
                 room.guest = `${firstname} ${lastname}`;
                 room.checkin = checkin;
                 room.checkout = checkout;
-                console.log('Room status updated');
             }
             
             // Add guest if not exists
-            console.log('Checking for existing guest with email:', email);
             const existingGuest = guests.find(g => g.email === email && email);
-            console.log('Existing guest found:', existingGuest);
             if (!existingGuest && email) {
-                console.log('Adding new guest to database');
-                const guestId = 'G' + String(guests.length + 1).padStart(3, '0');
+                const guestId = generateGuestId();
                 guests.push({
                     id: guestId,
                     firstname: firstname,
@@ -3903,13 +3896,10 @@
                     bookings: 0, // Will be updated by updateGuestBookingCounts()
                     regular: false
                 });
-                console.log('New guest added to database');
             }
             // Booking count will be updated automatically by updateGuestBookingCounts()
             
-            console.log('About to call updateRoomStatusesFromBookings...');
             updateRoomStatusesFromBookings();
-            console.log('updateRoomStatusesFromBookings completed');
             
             resetForm();
             updateDashboard();
@@ -3918,15 +3908,12 @@
             try { renderCalendar(); } catch (e) { console.error('Error updating calendar:', e); }
             saveToLocalStorage();
             
-            console.log('=== ABOUT TO EXECUTE TAB SWITCH ===');
             
             // Switch to calendar tab immediately after successful booking creation
             showAlert('Buchung erfolgreich erstellt!', 'success');
-            console.log('Alert shown, setting up timeout for tab switch');
             
             // Switch to calendar tab after a short delay
             setTimeout(() => {
-                console.log('=== TIMEOUT EXECUTED - SWITCHING TO CALENDAR ===');
                 showTab('kalender');
                 showAlert('Neue Buchung im Kalender sichtbar!', 'info');
             }, 800);
@@ -4004,35 +3991,35 @@
             sortedBookings.forEach(booking => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${booking.id}</td>
-                    <td>${booking.firstname} ${booking.lastname}</td>
-                    <td>Zimmer ${booking.room}</td>
+                    <td>${escapeHtml(booking.id)}</td>
+                    <td>${escapeHtml(booking.firstname)} ${escapeHtml(booking.lastname)}</td>
+                    <td>Zimmer ${escapeHtml(booking.room)}</td>
                     <td>${formatDate(booking.checkin)}</td>
                     <td>${formatDate(booking.checkout)}</td>
                     <td>
                         <span class="badge badge-${getBookingBadgeType(booking.status)} status-badge">
                             <i class="fas fa-${getBookingStatusIcon(booking.status)}"></i>
-                            ${booking.status}
+                            ${escapeHtml(booking.status)}
                         </span>
                     </td>
                     <td>€${booking.total.toFixed(2)}</td>
                     <td>
                         <div class="btn-group" style="display: flex; gap: 2px; flex-wrap: nowrap;">
-                            <button class="btn btn-outline btn-xs" onclick="editBooking('${booking.id}')" title="Bearbeiten">
+                            <button class="btn btn-outline btn-xs" ${act('editBooking', booking.id)} title="Bearbeiten">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-success btn-xs" onclick="openOfferEditor('${booking.id}')" title="Angebot erstellen">
+                            <button class="btn btn-success btn-xs" ${act('openOfferEditor', booking.id)} title="Angebot erstellen">
                                 <i class="fas fa-file-alt"></i>
                             </button>
-                            <button class="btn btn-info btn-xs" onclick="openInvoiceEditor('${booking.id}')" title="Rechnung erstellen">
+                            <button class="btn btn-info btn-xs" ${act('openInvoiceEditor', booking.id)} title="Rechnung erstellen">
                                 <i class="fas fa-file-invoice"></i>
                             </button>
                             ${booking.status !== 'Storniert' ? `
-                                <button class="btn btn-warning btn-xs" onclick="cancelBooking('${booking.id}')" title="Stornieren">
+                                <button class="btn btn-warning btn-xs" ${act('cancelBooking', booking.id)} title="Stornieren">
                                     <i class="fas fa-ban"></i>
                                 </button>
                             ` : `
-                                <button class="btn btn-danger btn-xs" onclick="deleteBooking('${booking.id}')" title="Löschen">
+                                <button class="btn btn-danger btn-xs" ${act('deleteBooking', booking.id)} title="Löschen">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             `}
@@ -4914,7 +4901,7 @@
                 itemDiv.className = 'invoice-item';
                 itemDiv.innerHTML = `
                     <span>${index + 1}</span>
-                    <textarea rows="2" placeholder="Beschreibung" onchange="updateInvoiceItem('${item.id}', 'description', this.value)">${item.description}</textarea>
+                    <textarea rows="2" placeholder="Beschreibung" onchange="updateInvoiceItem('${item.id}', 'description', this.value)">${escapeHtml(item.description)}</textarea>
                     <input type="number" min="0" step="0.01" value="${item.quantity}" onchange="updateInvoiceItem('${item.id}', 'quantity', this.value)">
                     <input type="number" min="0" step="0.01" value="${item.unitPrice.toFixed(2)}" onchange="updateInvoiceItem('${item.id}', 'unitPrice', this.value)">
                     <input type="number" min="0" max="100" step="0.01" value="${(item.taxRate ?? 10).toFixed(2)}" onchange="updateInvoiceItem('${item.id}', 'taxRate', this.value)">
@@ -5393,7 +5380,7 @@
                 itemDiv.className = 'invoice-item-row';
                 itemDiv.innerHTML = `
                     <span class="item-position">${index + 1}</span>
-                    <input type="text" class="item-description" value="${item.description}"
+                    <input type="text" class="item-description" value="${escapeHtml(item.description)}"
                            onchange="currentOfferItems.find(i => i.id === '${item.id}').description = this.value; renderOfferItems()">
                     <input type="number" class="item-quantity" value="${item.quantity}" min="0" step="0.01"
                            onchange="currentOfferItems.find(i => i.id === '${item.id}').quantity = parseFloat(this.value) || 0; renderOfferItems()">
@@ -6133,11 +6120,8 @@
 
         // Guest management functions
         function renderGuests() {
-            console.log('=== renderGuests START ===');
-            console.log('renderGuests called');
             // Update booking counts before rendering
             updateGuestBookingCounts();
-            console.log('After updateGuestBookingCounts, guests:', guests.map(g => ({name: g.firstname + ' ' + g.lastname, bookings: g.bookings})));
 
             const tbody = document.getElementById('guests-table-body');
             tbody.innerHTML = '';
@@ -6147,16 +6131,15 @@
                 `${a.lastname} ${a.firstname}`.localeCompare(`${b.lastname} ${b.firstname}`)
             );
             
-            console.log('Rendering guests:', sortedGuests.map(g => ({name: g.firstname + ' ' + g.lastname, bookings: g.bookings})));
             
             sortedGuests.forEach(guest => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${guest.id}</td>
-                    <td>${guest.firstname} ${guest.lastname}</td>
-                    <td>${guest.email || '-'}</td>
-                    <td>${guest.phone || '-'}</td>
-                    <td style="max-width: 150px; white-space: pre-line; font-size: 0.85em;">${guest.address || '-'}</td>
+                    <td>${escapeHtml(guest.id)}</td>
+                    <td>${escapeHtml(guest.firstname)} ${escapeHtml(guest.lastname)}</td>
+                    <td>${escapeHtml(guest.email || '-')}</td>
+                    <td>${escapeHtml(guest.phone || '-')}</td>
+                    <td style="max-width: 150px; white-space: pre-line; font-size: 0.85em;">${escapeHtml(guest.address || '-')}</td>
                     <td>${guest.bookings}</td>
                     <td>
                         <span class="badge ${guest.bookings > 1 ? 'badge-primary' : 'badge-info'}">
@@ -6166,10 +6149,10 @@
                     </td>
                     <td>
                         <div class="btn-group" style="display: flex; gap: 2px; flex-wrap: nowrap;">
-                            <button class="btn btn-outline btn-xs" onclick="editGuest('${guest.id}')" title="Bearbeiten">
+                            <button class="btn btn-outline btn-xs" ${act('editGuest', guest.id)} title="Bearbeiten">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button class="btn btn-danger btn-xs" onclick="deleteGuest('${guest.id}')" title="Löschen">
+                            <button class="btn btn-danger btn-xs" ${act('deleteGuest', guest.id)} title="Löschen">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </div>
@@ -6209,7 +6192,7 @@
                 return;
             }
             
-            const guestId = 'G' + String(guests.length + 1).padStart(3, '0');
+            const guestId = generateGuestId();
             
             guests.push({
                 id: guestId,
@@ -6248,17 +6231,6 @@
                 showAlert('Gast nicht gefunden!', 'danger');
                 return;
             }
-
-            // HTML-Escape-Funktion für sichere Template-Strings
-            const escapeHtml = (str) => {
-                if (!str) return '';
-                return String(str)
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;')
-                    .replace(/"/g, '&quot;')
-                    .replace(/'/g, '&#39;');
-            };
 
             // Modal-Inhalt mit innerHTML erstellen (V12 Ansatz mit HTML-Escaping)
             const modalBody = document.querySelector('#edit-guest-modal .modal-body');
@@ -6303,13 +6275,6 @@
                 </form>
             `;
             
-            console.log('HTML created for guest:', {
-                id: guest.id,
-                firstname: guest.firstname,
-                lastname: guest.lastname,
-                escapedFirstname: escapeHtml(guest.firstname),
-                escapedLastname: escapeHtml(guest.lastname)
-            });
             
             modalFooter.innerHTML = `
                 <button type="button" class="btn btn-primary" onclick="saveGuestChanges()">
@@ -6322,27 +6287,9 @@
 
             // Modal öffnen
             document.getElementById('edit-guest-modal').style.display = 'block';
-
-            // Nach dem Öffnen prüfen, ob die Werte in den Feldern stehen
-            setTimeout(() => {
-                const firstnameField = document.getElementById('edit-guest-firstname-dynamic');
-                const lastnameField = document.getElementById('edit-guest-lastname-dynamic');
-                const emailField = document.getElementById('edit-guest-email-dynamic');
-                const phoneField = document.getElementById('edit-guest-phone-dynamic');
-                
-                console.log('Values check after modal open:', {
-                    firstnameField: !!firstnameField,
-                    lastnameField: !!lastnameField,
-                    firstnameValue: firstnameField ? firstnameField.value : 'field not found',
-                    lastnameValue: lastnameField ? lastnameField.value : 'field not found',
-                    emailValue: emailField ? emailField.value : 'field not found',
-                    phoneValue: phoneField ? phoneField.value : 'field not found'
-                });
-            }, 100);
         }
 
         function saveGuestChanges() {
-            console.log('saveGuestChanges called - START');
             
             const guestIdEl = document.getElementById('edit-guest-id-dynamic');
             const firstnameEl = document.getElementById('edit-guest-firstname-dynamic');
@@ -6351,33 +6298,14 @@
             const phoneEl = document.getElementById('edit-guest-phone-dynamic');
             const addressEl = document.getElementById('edit-guest-address-dynamic');
 
-            console.log('Elements search result:', {
-                guestIdEl: !!guestIdEl,
-                firstnameEl: !!firstnameEl,
-                lastnameEl: !!lastnameEl,
-                emailEl: !!emailEl,
-                phoneEl: !!phoneEl
-            });
-
             if (!firstnameEl || !lastnameEl || !guestIdEl) {
-                console.log('Elements not found - ABORT');
                 showAlert('Formular-Elemente nicht gefunden!', 'danger');
                 return;
             }
             
-            console.log('All elements found - CONTINUE');
 
             const guestId = guestIdEl.value;
             
-            // Debug: Schauen was wirklich in den Feldern steht
-            console.log('Debug form elements:', {
-                firstnameEl,
-                lastnameEl,
-                firstnameValue: firstnameEl.value,
-                lastnameValue: lastnameEl.value,
-                firstnameAttribute: firstnameEl.getAttribute('value'),
-                lastnameAttribute: lastnameEl.getAttribute('value')
-            });
             
             const firstname = firstnameEl.value.trim();
             const lastname = lastnameEl.value.trim();
@@ -6385,12 +6313,6 @@
             const phone = phoneEl ? phoneEl.value.trim() : '';
             const address = addressEl ? addressEl.value.trim() : '';
             
-            console.log('Final extracted values:', {
-                firstname: `"${firstname}"`,
-                lastname: `"${lastname}"`,
-                email: `"${email}"`,
-                phone: `"${phone}"`
-            });
 
             if (!firstname || !lastname) {
                 showAlert('Vorname und Nachname sind Pflichtfelder!', 'warning');
@@ -6410,13 +6332,11 @@
             }
 
             // Gast-Daten aktualisieren
-            console.log('Before update:', guests[guestIndex]);
             guests[guestIndex].firstname = firstname;
             guests[guestIndex].lastname = lastname;
             guests[guestIndex].email = email;
             guests[guestIndex].phone = phone;
             guests[guestIndex].address = address;
-            console.log('After update:', guests[guestIndex]);
 
             // Auch alle Buchungen mit diesem Gast aktualisieren
             bookings.forEach(booking => {
@@ -6429,7 +6349,6 @@
             });
 
             saveToLocalStorage();
-            console.log('Data saved to localStorage. Current guests array:', guests);
             renderGuests();
             renderBookings(); // Buchungen auch neu rendern, falls Namen geändert wurden
             updateDashboard();
@@ -6501,7 +6420,7 @@
                 const roomCell = document.createElement('td');
                 roomCell.className = 'room-cell';
                 if (room.name) {
-                    roomCell.innerHTML = `<div class="room-number">${room.number}</div><div class="room-name-small">${room.name}</div>`;
+                    roomCell.innerHTML = `<div class="room-number">${escapeHtml(room.number)}</div><div class="room-name-small">${escapeHtml(room.name)}</div>`;
                 } else {
                     roomCell.textContent = room.number;
                 }
@@ -6681,43 +6600,6 @@
             return { status: 'frei' };
         }
 
-        function showDayDetails(room, dateStr, status) {
-            console.log('DEBUG: showDayDetails called with room object:', room);
-            console.log('DEBUG: dateStr:', dateStr, 'status:', status);
-
-            const date = new Date(dateStr);
-            const formattedDate = date.toLocaleDateString('de-DE');
-
-            // Modal-Titel setzen
-            document.getElementById('calendar-modal-title').textContent = `Zimmer ${room.number} - ${formattedDate}`;
-
-            // Modal-Inhalt erstellen
-            let actionsHtml = '';
-            try {
-                console.log('DEBUG: Calling getStatusActions with:', room.number, dateStr, status);
-                actionsHtml = getStatusActions(room.number, dateStr, status);
-                console.log('DEBUG: actionsHtml result:', actionsHtml);
-            } catch (error) {
-                console.error('Error in getStatusActions:', error);
-                actionsHtml = `<p class="text-red-500">Fehler beim Laden der Aktionen: ${error.message}</p>`;
-            }
-
-            let content = `
-                <div class="mb-4">
-                    <p><strong>Zimmerart:</strong> ${room.type || 'Standard'}</p>
-                    <p><strong>Status:</strong> <span class="badge badge-${getBadgeType(status.status)}">${getStatusText(status.status)}</span></p>
-                    ${status.guest ? `<p><strong>Gast:</strong> ${status.guest}</p>` : ''}
-                    <p><strong>Preis:</strong> €${room.price || '0'}/Nacht</p>
-                </div>
-                <div class="btn-group">
-                    ${actionsHtml}
-                </div>
-            `;
-
-            document.getElementById('calendar-modal-content').innerHTML = content;
-            document.getElementById('calendar-detail-modal').style.display = 'block';
-        }
-
         function getStatusText(status) {
             switch (status) {
                 case 'frei': return 'Frei';
@@ -6741,7 +6623,7 @@
             let actions = '';
 
             if (status.status === 'frei') {
-                actions = `<button class="btn btn-primary" onclick="createBookingFromCalendar('${roomNumber}', '${dateStr}')">
+                actions = `<button class="btn btn-primary" ${act('createBookingFromCalendar', roomNumber, dateStr)}>
                     <i class="fas fa-plus"></i> Neue Buchung erstellen
                 </button>`;
             } else if (status.status === 'checkin' || status.status === 'checkout' || status.status === 'checkout_checkin') {
@@ -6755,12 +6637,12 @@
                 relevantBookings.forEach(booking => {
                     actions += `
                         <div class="mb-2">
-                            <strong>${booking.firstname} ${booking.lastname}</strong>
+                            <strong>${escapeHtml(booking.firstname)} ${escapeHtml(booking.lastname)}</strong>
                             <div class="btn-group mt-2">
-                                <button class="btn btn-outline btn-sm" onclick="editBookingFromCalendar('${booking.id}')">
+                                <button class="btn btn-outline btn-sm" ${act('editBookingFromCalendar', booking.id)}>
                                     <i class="fas fa-edit"></i> Bearbeiten
                                 </button>
-                                <button class="btn btn-warning btn-sm" onclick="cancelBookingFromCalendar('${booking.id}')">
+                                <button class="btn btn-warning btn-sm" ${act('cancelBookingFromCalendar', booking.id)}>
                                     <i class="fas fa-ban"></i> Stornieren
                                 </button>
                             </div>
@@ -6770,7 +6652,7 @@
                 
                 if (status.status === 'checkout' || status.status === 'checkout_checkin') {
                     actions += `
-                        <button class="btn btn-primary btn-sm" onclick="createBookingFromCalendar('${roomNumber}', '${dateStr}')">
+                        <button class="btn btn-primary btn-sm" ${act('createBookingFromCalendar', roomNumber, dateStr)}>
                             <i class="fas fa-plus"></i> Neue Buchung ab heute
                         </button>
                     `;
@@ -6785,32 +6667,27 @@
                     b.status !== 'Abgeschlossen'
                 );
 
-                console.log('DEBUG getStatusActions - status:', status.status, 'booking found:', booking);
-
                 if (booking) {
                     actions = `
                         <div class="mb-2">
-                            <strong>${booking.firstname} ${booking.lastname}</strong><br>
+                            <strong>${escapeHtml(booking.firstname)} ${escapeHtml(booking.lastname)}</strong><br>
                             <small>${booking.checkin} bis ${booking.checkout}</small>
                             <div class="btn-group mt-2">
-                                <button class="btn btn-outline btn-sm" onclick="editBookingFromCalendar('${booking.id}')">
+                                <button class="btn btn-outline btn-sm" ${act('editBookingFromCalendar', booking.id)}>
                                     <i class="fas fa-edit"></i> Buchung bearbeiten
                                 </button>
-                                <button class="btn btn-warning btn-sm" onclick="cancelBookingFromCalendar('${booking.id}')">
+                                <button class="btn btn-warning btn-sm" ${act('cancelBookingFromCalendar', booking.id)}>
                                     <i class="fas fa-ban"></i> Buchung stornieren
                                 </button>
                             </div>
                         </div>
                     `;
                 } else {
-                    console.warn('DEBUG: Booking not found for room', roomNumber, 'date', dateStr, 'status', status.status);
-                    console.log('Available bookings:', bookings.filter(b => b.room === roomNumber));
                 }
             }
             
             return actions;
         }
-
 
         function editBookingFromCalendar(bookingId) {
             closeModal('calendar-detail-modal');
@@ -6826,7 +6703,6 @@
             closeModal('calendar-detail-modal');
             openInvoiceEditor(bookingId);
         }
-
 
         function previousMonth() {
             currentCalendarMonth--;
@@ -6988,7 +6864,6 @@
                 const savedBookings = localStorage.getItem('hotelBookings');
                 const savedGuests = localStorage.getItem('hotelGuests');
                 
-                console.log('Checking for existing data:', { savedRooms: !!savedRooms, savedBookings: !!savedBookings, savedGuests: !!savedGuests });
                 
                 // Check if any real data exists (not just empty arrays)
                 let hasRealData = false;
@@ -7025,11 +6900,9 @@
                     }
                 }
                 
-                console.log('Has real data:', hasRealData);
                 
                 // Show import dialog if no real data exists
                 if (!hasRealData) {
-                    console.log('No real data found, showing import dialog');
                     setTimeout(() => {
                         document.getElementById('initial-import-modal').style.display = 'block';
                     }, 500);
@@ -7099,12 +6972,12 @@
             let content = `
                 <div class="form-section">
                     <h3><i class="fas fa-info-circle"></i> Zimmerinformationen</h3>
-                    <p><strong>Zimmerart:</strong> ${room.type}</p>
+                    <p><strong>Zimmerart:</strong> ${escapeHtml(room.type)}</p>
                     <p><strong>Status:</strong> <span class="badge badge-${getBadgeType(status.status)}">
                         <i class="fas fa-${getStatusIcon(status.status)}"></i>
                         ${getStatusText(status.status)}
                     </span></p>
-                    ${status.guest ? `<p><strong>Gast:</strong> ${status.guest}</p>` : ''}
+                    ${status.guest ? `<p><strong>Gast:</strong> ${escapeHtml(status.guest)}</p>` : ''}
                     <p><strong>Preis:</strong> €${room.price}/Nacht</p>
                 </div>
             `;
@@ -7123,24 +6996,24 @@
                     content += `
                         <div class="form-section">
                             <h3><i class="fas fa-calendar-check"></i> Buchungsdetails</h3>
-                            <p><strong>Buchungs-Nr:</strong> ${booking.id}</p>
+                            <p><strong>Buchungs-Nr:</strong> ${escapeHtml(booking.id)}</p>
                             <p><strong>Check-in:</strong> ${formatDate(booking.checkin)}</p>
                             <p><strong>Check-out:</strong> ${formatDate(booking.checkout)}</p>
                             <p><strong>Gesamtpreis:</strong> €${booking.total}</p>
-                            <p><strong>Zahlungsart:</strong> ${booking.payment}</p>
-                            ${booking.remarks ? `<p><strong>Bemerkungen:</strong> ${booking.remarks}</p>` : ''}
+                            <p><strong>Zahlungsart:</strong> ${escapeHtml(booking.payment)}</p>
+                            ${booking.remarks ? `<p><strong>Bemerkungen:</strong> ${escapeHtml(booking.remarks)}</p>` : ''}
                             
                             <div class="btn-group mt-4">
-                                <button class="btn btn-primary" onclick="editBookingFromCalendar('${booking.id}')">
+                                <button class="btn btn-primary" ${act('editBookingFromCalendar', booking.id)}>
                                     <i class="fas fa-edit"></i> Buchung bearbeiten
                                 </button>
-                                <button class="btn btn-success" onclick="openOfferEditor('${booking.id}'); closeModal('calendar-detail-modal');">
+                                <button class="btn btn-success" ${act('openOfferEditorFromCalendar', booking.id)}>
                                     <i class="fas fa-file-alt"></i> Angebot erstellen
                                 </button>
-                                <button class="btn btn-info" onclick="generateInvoiceFromCalendar('${booking.id}')">
+                                <button class="btn btn-info" ${act('generateInvoiceFromCalendar', booking.id)}>
                                     <i class="fas fa-file-invoice"></i> Rechnung generieren
                                 </button>
-                                <button class="btn btn-danger" onclick="cancelBookingFromCalendar('${booking.id}')">
+                                <button class="btn btn-danger" ${act('cancelBookingFromCalendar', booking.id)}>
                                     <i class="fas fa-ban"></i> Buchung stornieren
                                 </button>
                             </div>
@@ -7159,24 +7032,24 @@
                     content += `
                         <div class="form-section">
                             <h3><i class="fas fa-sign-in-alt text-blue-500"></i> Check-in Details</h3>
-                            <p><strong>Buchungs-Nr:</strong> ${booking.id}</p>
-                            <p><strong>Gast:</strong> ${booking.firstname} ${booking.lastname}</p>
+                            <p><strong>Buchungs-Nr:</strong> ${escapeHtml(booking.id)}</p>
+                            <p><strong>Gast:</strong> ${escapeHtml(booking.firstname)} ${escapeHtml(booking.lastname)}</p>
                             <p><strong>Check-out:</strong> ${formatDate(booking.checkout)}</p>
                             <p><strong>Gesamtpreis:</strong> €${booking.total}</p>
                             <p><strong>Status:</strong> ${booking.status}</p>
-                            ${booking.remarks ? `<p><strong>Bemerkungen:</strong> ${booking.remarks}</p>` : ''}
+                            ${booking.remarks ? `<p><strong>Bemerkungen:</strong> ${escapeHtml(booking.remarks)}</p>` : ''}
 
                             <div class="btn-group mt-4">
-                                <button class="btn btn-primary" onclick="editBookingFromCalendar('${booking.id}')">
+                                <button class="btn btn-primary" ${act('editBookingFromCalendar', booking.id)}>
                                     <i class="fas fa-edit"></i> Buchung bearbeiten
                                 </button>
-                                <button class="btn btn-success" onclick="openOfferEditor('${booking.id}'); closeModal('calendar-detail-modal');">
+                                <button class="btn btn-success" ${act('openOfferEditorFromCalendar', booking.id)}>
                                     <i class="fas fa-file-alt"></i> Angebot erstellen
                                 </button>
-                                <button class="btn btn-info" onclick="generateInvoiceFromCalendar('${booking.id}')">
+                                <button class="btn btn-info" ${act('generateInvoiceFromCalendar', booking.id)}>
                                     <i class="fas fa-file-invoice"></i> Rechnung generieren
                                 </button>
-                                <button class="btn btn-danger" onclick="cancelBookingFromCalendar('${booking.id}')">
+                                <button class="btn btn-danger" ${act('cancelBookingFromCalendar', booking.id)}>
                                     <i class="fas fa-ban"></i> Buchung stornieren
                                 </button>
                             </div>
@@ -7195,27 +7068,27 @@
                     content += `
                         <div class="form-section">
                             <h3><i class="fas fa-sign-out-alt text-orange-500"></i> Check-out Details</h3>
-                            <p><strong>Buchungs-Nr:</strong> ${checkoutBooking.id}</p>
-                            <p><strong>Gast:</strong> ${checkoutBooking.firstname} ${checkoutBooking.lastname}</p>
+                            <p><strong>Buchungs-Nr:</strong> ${escapeHtml(checkoutBooking.id)}</p>
+                            <p><strong>Gast:</strong> ${escapeHtml(checkoutBooking.firstname)} ${escapeHtml(checkoutBooking.lastname)}</p>
                             <p><strong>Check-in:</strong> ${formatDate(checkoutBooking.checkin)}</p>
                             <p><strong>Gesamtpreis:</strong> €${checkoutBooking.total}</p>
                             <p><strong>Status:</strong> ${checkoutBooking.status}</p>
-                            ${checkoutBooking.remarks ? `<p><strong>Bemerkungen:</strong> ${checkoutBooking.remarks}</p>` : ''}
+                            ${checkoutBooking.remarks ? `<p><strong>Bemerkungen:</strong> ${escapeHtml(checkoutBooking.remarks)}</p>` : ''}
                             
                             <div class="btn-group mt-4">
-                                <button class="btn btn-primary" onclick="editBookingFromCalendar('${checkoutBooking.id}')">
+                                <button class="btn btn-primary" ${act('editBookingFromCalendar', checkoutBooking.id)}>
                                     <i class="fas fa-edit"></i> Check-out Buchung bearbeiten
                                 </button>
-                                <button class="btn btn-danger" onclick="cancelBookingFromCalendar('${checkoutBooking.id}')">
+                                <button class="btn btn-danger" ${act('cancelBookingFromCalendar', checkoutBooking.id)}>
                                     <i class="fas fa-ban"></i> Buchung stornieren
                                 </button>
-                                <button class="btn btn-info" onclick="generateInvoiceFromCalendar('${checkoutBooking.id}')">
+                                <button class="btn btn-info" ${act('generateInvoiceFromCalendar', checkoutBooking.id)}>
                                     <i class="fas fa-file-invoice"></i> Rechnung generieren
                                 </button>
                             </div>
                             
                             <div class="btn-group mt-4">
-                                <button class="btn btn-success" onclick="createBookingFromCalendar('${room.number}', '${dateStr}')">
+                                <button class="btn btn-success" ${act('createBookingFromCalendar', room.number, dateStr)}>
                                     <i class="fas fa-plus"></i> Neue Buchung ab heute
                                 </button>
                             </div>
@@ -7243,16 +7116,16 @@
                 if (checkoutBooking) {
                     content += `
                         <div class="p-3 bg-orange-50 rounded-lg mb-3">
-                            <h4><i class="fas fa-sign-out-alt"></i> Check-out: ${checkoutBooking.firstname} ${checkoutBooking.lastname}</h4>
-                            <p class="text-sm">Buchungs-Nr: ${checkoutBooking.id}</p>
+                            <h4><i class="fas fa-sign-out-alt"></i> Check-out: ${escapeHtml(checkoutBooking.firstname)} ${escapeHtml(checkoutBooking.lastname)}</h4>
+                            <p class="text-sm">Buchungs-Nr: ${escapeHtml(checkoutBooking.id)}</p>
                             <div class="btn-group mt-2">
-                                <button class="btn btn-outline btn-sm" onclick="editBookingFromCalendar('${checkoutBooking.id}')">
+                                <button class="btn btn-outline btn-sm" ${act('editBookingFromCalendar', checkoutBooking.id)}>
                                     <i class="fas fa-edit"></i> Bearbeiten
                                 </button>
-                                <button class="btn btn-danger btn-sm" onclick="cancelBookingFromCalendar('${checkoutBooking.id}')">
+                                <button class="btn btn-danger btn-sm" ${act('cancelBookingFromCalendar', checkoutBooking.id)}>
                                     <i class="fas fa-ban"></i> Stornieren
                                 </button>
-                                <button class="btn btn-info btn-sm" onclick="generateInvoiceFromCalendar('${checkoutBooking.id}')">
+                                <button class="btn btn-info btn-sm" ${act('generateInvoiceFromCalendar', checkoutBooking.id)}>
                                     <i class="fas fa-file-invoice"></i> Rechnung
                                 </button>
                             </div>
@@ -7263,16 +7136,16 @@
                 if (checkinBooking) {
                     content += `
                         <div class="p-3 bg-blue-50 rounded-lg mb-3">
-                            <h4><i class="fas fa-sign-in-alt"></i> Check-in: ${checkinBooking.firstname} ${checkinBooking.lastname}</h4>
-                            <p class="text-sm">Buchungs-Nr: ${checkinBooking.id}</p>
+                            <h4><i class="fas fa-sign-in-alt"></i> Check-in: ${escapeHtml(checkinBooking.firstname)} ${escapeHtml(checkinBooking.lastname)}</h4>
+                            <p class="text-sm">Buchungs-Nr: ${escapeHtml(checkinBooking.id)}</p>
                             <div class="btn-group mt-2">
-                                <button class="btn btn-outline btn-sm" onclick="editBookingFromCalendar('${checkinBooking.id}')">
+                                <button class="btn btn-outline btn-sm" ${act('editBookingFromCalendar', checkinBooking.id)}>
                                     <i class="fas fa-edit"></i> Bearbeiten
                                 </button>
-                                <button class="btn btn-danger btn-sm" onclick="cancelBookingFromCalendar('${checkinBooking.id}')">
+                                <button class="btn btn-danger btn-sm" ${act('cancelBookingFromCalendar', checkinBooking.id)}>
                                     <i class="fas fa-ban"></i> Stornieren
                                 </button>
-                                <button class="btn btn-info btn-sm" onclick="generateInvoiceFromCalendar('${checkinBooking.id}')">
+                                <button class="btn btn-info btn-sm" ${act('generateInvoiceFromCalendar', checkinBooking.id)}>
                                     <i class="fas fa-file-invoice"></i> Rechnung
                                 </button>
                             </div>
@@ -7288,7 +7161,7 @@
                             <i class="fas fa-check-circle text-4xl text-green-500 mb-4"></i>
                             <p class="text-green-600 font-semibold mb-4">✅ Zimmer ist an diesem Tag verfügbar</p>
                             
-                            <button class="btn btn-success" onclick="createBookingFromCalendar('${room.number}', '${dateStr}')">
+                            <button class="btn btn-success" ${act('createBookingFromCalendar', room.number, dateStr)}>
                                 <i class="fas fa-plus"></i> Neue Buchung erstellen
                             </button>
                         </div>
